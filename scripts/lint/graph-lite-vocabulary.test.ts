@@ -23,6 +23,33 @@ describe('graph-lite-vocabulary', () => {
     fx.dispose();
   });
 
+  it('skips a fenced code block in markdown — a third-party API name is not a leak', async () => {
+    // Bun's FFI genuinely returns a `symbols` object. A guard that fires on
+    // someone else's API name is a guard that gets disabled.
+    const fx = await fixture({
+      'docs/graph-lite/README.md':
+        '# graph-lite\n\n```js\nconst { symbols } = dlopen(lib, {});\n```\n',
+    });
+    expect(await run(fx.root)).toEqual([]);
+    fx.dispose();
+  });
+
+  it('still flags prose around a fenced block', async () => {
+    const fx = await fixture({
+      'docs/graph-lite/README.md': '```js\nok();\n```\n\nStores a symbol per node.\n',
+    });
+    expect(await run(fx.root)).toHaveLength(1);
+    fx.dispose();
+  });
+
+  it('does NOT skip code in a source file — SymbolNode is the leak this exists to catch', async () => {
+    const fx = await fixture({
+      'graph-lite/include/graph-lite.h': 'struct SymbolNode { int id; };\n',
+    });
+    expect(await run(fx.root)).toHaveLength(1);
+    fx.dispose();
+  });
+
   it('passes clean generic code', async () => {
     const fx = await fixture({
       'graph-lite/include/graph-lite.h':

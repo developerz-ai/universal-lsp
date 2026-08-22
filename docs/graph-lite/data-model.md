@@ -16,6 +16,10 @@ Ids being stable across a save/load cycle is a **one-way door**: callers will
 persist them in their own state the moment the feature exists, so the guarantee
 has to be decided before the first release, not after.
 
+Ids cross the C boundary, so their width is ABI. Pick a fixed-width integer type
+and never change it — a binding that read 64 bits and now reads 32 does not fail
+to compile, it reads garbage.
+
 ## Edges
 
 An edge is directed, typed, and carries properties of its own.

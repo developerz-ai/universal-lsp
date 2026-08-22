@@ -57,7 +57,7 @@ Two products, one repo, one direction of dependency.
 
 | | What | Depends on |
 |---|---|---|
-| **graph-lite** | Embeddable property-graph library. Typed nodes, typed directed edges, properties. CSR storage, native traversal, mmap-friendly persistence. Single public header. MIT. | nothing |
+| **graph-lite** | Embeddable property-graph library. Typed nodes, typed directed edges, properties. CSR storage, native traversal, mmap-friendly persistence. **Public surface is a C ABI** (`graph-lite.h`); `graph-lite.hpp` is header-only C++ ergonomics over it. MIT. | nothing |
 | **Universal LSP** | The language server: stdio LSP + MCP + batch CLI, tree-sitter parsing, native scope/type engines, Lua plugins. Apache-2.0. | graph-lite |
 
 **The doctrine that outranks instinct:**
@@ -68,6 +68,10 @@ Two products, one repo, one direction of dependency.
   because something is not installed.
 - **graph-lite knows nothing about this consumer.** No LSP concept in its API,
   internals, tests, or docs. Both directions are enforced by guards; see below.
+- **graph-lite's contract is C, not C++.** Every embedder — Ruby, JavaScript,
+  Python, Rust, Go — binds `graph-lite.h` through an FFI. No C++ type may cross
+  that boundary, and `graph-lite.hpp` is a convenience layered on top, never the
+  other way around ([ADR 0004](docs/architecture/decisions/0004-graph-lite-c-abi.md)).
 - **Agents are the primary client, editors the compatible one.** Design request
   shapes for "what breaks if I change this" as much as for hover-on-cursor.
 
@@ -151,6 +155,9 @@ bun run scripts/help.ts         # the full catalog
   service. This is the product's whole thesis.
 - Never make graph-lite depend on anything in this repo — no include, no link, no
   concept name.
+- Never put a C++ type, an exception, or a published struct layout in
+  `graph-lite.h`. It is an ABI every binding pins; changing an entry point breaks
+  them silently, at load time.
 - Never disable a guard, a warning, or a test to get green.
 - Never introduce a feature flag or a second code path "for safety".
 - Never commit a secret, a personal path, or a machine-specific value.

@@ -29,7 +29,10 @@ terminal-first, agent-driven world: standard **LSP over stdio** for editors, an
 **MCP** front-end for agents, and a headless **batch-query CLI** for CI.
 
 **graph-lite** — the missing *SQLite for graphs*: a small, dependency-free,
-embeddable property-graph library any C++ project can drop in via a single header.
+embeddable property-graph library any project can drop in via a single header.
+Its public surface is a **C ABI**, so Ruby, JavaScript, Python, Rust, Go and C
+embed it through their own FFI with no wrapper to keep in sync — the same thing
+that gave SQLite its reach.
 The LSP is its first and most demanding consumer — call graphs, import graphs and
 symbol relationships across large codebases, under interactive latency — but
 graph-lite's API is kept free of any of that vocabulary, and is
@@ -119,11 +122,28 @@ cmake -S graph-lite -B build/graph-lite -G Ninja
 cmake --build build/graph-lite
 ```
 
-```cpp
-#include "graph-lite.h"   // one header, no dependencies
+```c
+#include "graph-lite.h"     /* the contract: C linkage, opaque handles, status codes */
 ```
 
-API and data model: [`docs/graph-lite/README.md`](docs/graph-lite/README.md).
+```cpp
+#include "graph-lite.hpp"   // C++ ergonomics over the same entry points, header-only
+```
+
+```ruby
+require "ffi"               # and the same from Ruby, JS, Python, Rust, Go
+module GraphLite
+  extend FFI::Library
+  ffi_lib "graph-lite"
+  attach_function :graph_lite_version_string, [], :string
+end
+```
+
+A C translation unit in the test suite is compiled **as C** and linked, so a header
+that stops being C-compatible fails our build instead of your integration.
+
+API and data model: [`docs/graph-lite/README.md`](docs/graph-lite/README.md) ·
+why C: [ADR 0004](docs/architecture/decisions/0004-graph-lite-c-abi.md).
 
 ## Languages at launch
 

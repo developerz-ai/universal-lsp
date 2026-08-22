@@ -22,7 +22,12 @@ Versioning: [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### graph-lite
 
-- `0.0.1` — public header with version information only. The node/edge model,
+- `0.0.1` — public surface established as a **C ABI** (`graph-lite.h`): C linkage,
+  opaque handles, integer status codes. `graph-lite.hpp` is header-only C++
+  ergonomics over it and exports nothing of its own. A C translation unit in the
+  suite is compiled as C and linked, so the header cannot stop being C-compatible
+  silently. Version and status-code entry points only; the node/edge model,
   storage, traversal and persistence land in build phase 1.
+  ([ADR 0004](docs/architecture/decisions/0004-graph-lite-c-abi.md))
 
 [Unreleased]: https://github.com/developerz-ai/universal-lsp/commits/main

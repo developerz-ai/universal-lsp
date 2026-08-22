@@ -49,7 +49,8 @@ The Universal LSP is graph-lite's first, heaviest, and most demanding real-world
 
 ### 5.1 Scope and API shape
 
-- Public interface exposed via a single header (conceptually `graph-lite.h`, mirroring the ergonomics of single-header/amalgamation-style C/C++ libraries like SQLite's), so any C++ project can embed graph-lite with minimal integration friction.
+- Public interface exposed via a single header (`graph-lite.h`, mirroring the ergonomics of single-header/amalgamation-style C/C++ libraries like SQLite's), so any project can embed graph-lite with minimal integration friction.
+- **That header is C, with C linkage, and it is the contract** — opaque handles, integer status codes, caller-owned buffers, no C++ type crossing the boundary. The SQLite comparison is not only about being in-process: SQLite's reach comes from a flat C ABI that every language runtime can call. Ruby (FFI), JavaScript (N-API / `bun:ffi`), Python (`ctypes`/`cffi`), Rust, Go and C all bind the same entry points. A C++-only surface would cap adoption at C++ projects and would not even link reliably across toolchains, since C++ has no stable ABI. A separate header-only `graph-lite.hpp` provides C++ ergonomics over the same entry points and exports nothing of its own. Rationale and the rules that follow: [`docs/architecture/decisions/0004-graph-lite-c-abi.md`](architecture/decisions/0004-graph-lite-c-abi.md).
 - Generic property-graph data model: typed nodes and typed, directed edges, both carrying arbitrary key/value properties. No built-in concept of "symbol," "file," or "function" — those are just node types a consumer defines.
 - Core operations: add/remove nodes and edges, traverse (BFS/DFS, bounded and unbounded depth), reverse-edge traversal (for blast-radius/impact-style queries), shortest/any path between two nodes, and basic filtering by node/edge type during traversal.
 - No query language in the initial version (no Cypher/Datalog/SQL layer) — the library exposes a programmatic C++ traversal API. A declarative query layer can be considered later, once real usage clarifies what's actually needed, rather than designed speculatively up front.
@@ -64,6 +65,7 @@ The Universal LSP is graph-lite's first, heaviest, and most demanding real-world
 ### 5.3 Testing
 
 - graph-lite gets its own independent test suite, expressed purely in terms of its generic node/edge model — no LSP concepts should appear anywhere in graph-lite's tests, as a forcing function for API cleanliness.
+- The C ABI claim is tested, not asserted: at least one translation unit in the suite is compiled **as C** and linked, so a header that stops being C-compatible fails the build rather than failing an embedder. Reference bindings in a scripting language (build phase 13) are the honest test of whether a C surface designed by C++ programmers is actually usable from outside.
 - Correctness testing should include fuzzing and crash-consistency testing of the persistence layer specifically — this is the highest-risk area for any embedded storage engine (silent data corruption is a severe failure mode) and deserves disproportionate testing investment relative to the traversal algorithms themselves.
 
 ## 6. Universal LSP — high-level architecture

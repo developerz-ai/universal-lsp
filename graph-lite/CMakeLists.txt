@@ -18,6 +18,9 @@ endif()
 # Versioned independently of the LSP engine, per docs/spec.md §2.
 set(GRAPH_LITE_VERSION 0.0.1)
 
+# The public surface is C (graph-lite.h); graph-lite.hpp is header-only
+# ergonomics over it and exports nothing. Sources may be C++ internally — the ABI
+# is what is constrained, not the implementation language.
 add_library(graph-lite
     src/version.cpp)
 add_library(graph-lite::graph-lite ALIAS graph-lite)

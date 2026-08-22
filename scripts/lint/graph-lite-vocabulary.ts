@@ -17,6 +17,12 @@
  *
  * Fix: rename the identifier to its generic equivalent (a "symbol" is a node
  * type the CONSUMER defines; the translation belongs in analysis/).
+ *
+ * FENCED CODE BLOCKS IN MARKDOWN ARE SKIPPED, and only there. A doc example
+ * calling a THIRD-PARTY API cannot be renamed — Bun's FFI really does return a
+ * `symbols` object — and a guard that fires on someone else's API name is a guard
+ * that gets disabled. Source files are scanned in full, fences or not, because
+ * `SymbolNode` in a header is the leak this exists to catch.
  */
 import { Glob } from 'bun';
 import { REPO_ROOT } from '../lib/git.ts';
@@ -101,7 +107,16 @@ export async function run(root: string = REPO_ROOT): Promise<Finding[]> {
     for await (const rel of new Glob(pattern).scan({ cwd: root })) {
       if (ALLOWLIST.includes(rel)) continue;
       const content = await lines(`${root}/${rel}`);
+      const markdown = rel.endsWith('.md');
+      let inFence = false;
+
       content.forEach((text, i) => {
+        if (markdown && text.trimStart().startsWith('```')) {
+          inFence = !inFence;
+          return;
+        }
+        if (markdown && inFence) return;
+
         for (const [hit, why] of violations(text)) {
           findings.push({
             file: rel,

@@ -9,6 +9,7 @@ the reasoning survives the reversal.
 | [0001](0001-record-architecture-decisions.md) | Record architecture decisions | Accepted |
 | [0002](0002-graph-lite-lives-here-under-mit.md) | graph-lite develops in this repo, under its own license and version | Accepted |
 | [0003](0003-no-external-language-servers.md) | No external language-server processes, ever | Accepted |
+| [0004](0004-graph-lite-c-abi.md) | graph-lite's embedding surface is a stable C ABI | Accepted |
 
 ## When to write one
 

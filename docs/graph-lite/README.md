@@ -1,8 +1,13 @@
 # graph-lite
 
-A small, fast, dependency-free, embeddable property-graph library for C++20. One
-public header, one static library, no server, no query language, no runtime
+A small, fast, dependency-free, embeddable property-graph library. One public
+header, one static library, no server, no query language, no runtime
 dependencies.
+
+**The public surface is a C ABI.** Anything with an FFI can embed it — C, C++,
+Ruby, JavaScript, Python, Rust, Go — and C++ callers get a header-only ergonomics
+layer over the same entry points. The implementation language is C++; the contract is
+not, because C++ has no stable ABI across compilers or standard library versions.
 
 > **Status: pre-implementation (v0.0.1).** The header currently exposes version
 > information only. The model, storage, traversal and persistence described below
@@ -76,17 +81,28 @@ disproportionate testing investment relative to the traversal algorithms:
   store is either the old state or the new one and never a third thing.
 - The suite is expressed purely in the generic node/edge vocabulary above.
 
+## The surface
+
+| Header | For | Is |
+|---|---|---|
+| `graph-lite.h` | C, and every FFI | **The contract.** C linkage, opaque handles, integer status codes, caller-owned buffers, additive only. |
+| `graph-lite.hpp` | C++ | Header-only ergonomics over the C header. Exports no entry point of its own. |
+
+Rules the C surface holds to — no caller-visible type from the implementation
+language, opaque handles rather than published struct layouts, a distinct status
+code per failure a caller must distinguish, explicit buffer ownership, and no
+callback into the caller's runtime on a hot path. Full rationale:
+[`../architecture/decisions/0004-graph-lite-c-abi.md`](../architecture/decisions/0004-graph-lite-c-abi.md).
+
+The claim is tested rather than asserted: `tests/graph-lite/c_abi_test.c` is
+compiled **as C** and linked into the suite, so a header that stops being
+C-compatible fails the build instead of failing an embedder.
+
 ## Embedding
 
 ```bash
 cmake -S graph-lite -B build/graph-lite -G Ninja
 cmake --build build/graph-lite
-```
-
-```cpp
-#include "graph-lite.h"
-
-const auto v = graph_lite::version();   // check against GRAPH_LITE_VERSION_* macros
 ```
 
 Or vendor the directory and `add_subdirectory(graph-lite)`. It configures

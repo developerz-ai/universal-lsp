@@ -10,4 +10,4 @@ const char* version_string() noexcept {
     return GRAPH_LITE_VERSION_STRING;
 }
 
-}  // namespace graph_lite
+} // namespace graph_lite

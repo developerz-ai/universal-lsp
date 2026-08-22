@@ -54,6 +54,10 @@ jobs:
       - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
         with:
           bun-version: ${{ env.BUN_VERSION }}
+      # Fails CLOSED: an unresolvable base ref (a first push sends an all-zero
+      # `before`) widens to the full gate instead of selecting nothing. An empty
+      # selection reads as "skip the build" downstream, and CI then reports green
+      # over a build it never ran — nothing errors, which is the dangerous shape.
       - id: detect
         run: bun run scripts/changed.ts
 
@@ -73,9 +77,14 @@ jobs:
         with:
           bun-version: ${{ env.BUN_VERSION }}
       - run: bun install --frozen-lockfile
+      # Pinned major: clang-format's output changes between releases, so an
+      # unpinned formatter means CI and a developer disagree about what
+      # "formatted" is. scripts/format.ts refuses any other major.
       - name: Install clang-format
-        run: sudo apt-get update && sudo apt-get install -y clang-format
+        run: sudo apt-get update && sudo apt-get install -y clang-format-18
       - name: C/C++ formatting
+        env:
+          CLANG_FORMAT: clang-format-18
         run: bun run scripts/format.ts --check
       - name: TypeScript lint + format
         run: bunx biome check .

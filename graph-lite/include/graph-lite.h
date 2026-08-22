@@ -44,6 +44,6 @@ Version version() noexcept;
 /// Version string of the linked library, e.g. "0.0.1".
 const char* version_string() noexcept;
 
-}  // namespace graph_lite
+} // namespace graph_lite
 
-#endif  // GRAPH_LITE_H
+#endif // GRAPH_LITE_H

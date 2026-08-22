@@ -14,6 +14,6 @@ namespace ulsp {
 /// Version string of the linked engine, e.g. "0.0.1".
 const char* version_string() noexcept;
 
-}  // namespace ulsp
+} // namespace ulsp
 
-#endif  // ULSP_ENGINE_VERSION_H
+#endif // ULSP_ENGINE_VERSION_H

@@ -6,6 +6,12 @@
  * "green locally" stops meaning anything. Guard: scripts/ci-parity.test.ts
  */
 
+/**
+ * Returned by `changedFiles()` when the base ref cannot be resolved. Declared
+ * here, not in git.ts, so this module keeps its no-imports property.
+ */
+export const UNKNOWN_BASE = '<unknown-base>';
+
 export type Subsystem = 'graph-lite' | 'engine' | 'analysis' | 'daemon' | 'cli' | 'plugins';
 
 /** Who must be re-verified when a subsystem changes. Dependencies flow one way. */
@@ -18,8 +24,14 @@ const DEPENDENTS: Record<Subsystem, Subsystem[]> = {
   plugins: [],
 };
 
-/** A change to any of these re-verifies everything — the build itself moved. */
+/**
+ * A change to any of these re-verifies everything — the build itself moved. The
+ * sentinel from `changedFiles()` when the base ref does not resolve is in the
+ * list on purpose: an unknown diff must widen to the full gate, never narrow to
+ * nothing.
+ */
 const FULL_GATE_PATHS = [
+  UNKNOWN_BASE,
   'CMakeLists.txt',
   'CMakePresets.json',
   'cmake/',

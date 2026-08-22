@@ -70,3 +70,28 @@ than red, and nothing can merge on any branch.
 **Fix:** `runs-on: ubuntu-latest`, which is what `ci-parity.test.ts` pins. Moving
 off it means enrolling the repo and updating that assertion in the same commit.
 *(2026-08)*
+
+---
+
+### The format gate passes locally and fails in CI on the same files
+
+**Cause (fixed 2026-08):** `scripts/format.ts` listed files with `git ls-files`, so
+in a tree where nothing was staged it found zero files, said "no C/C++ sources
+tracked yet", and exited 0. A gate that answers with silence instead of an error.
+It now globs the filesystem, and zero matches is a **failure**, not a pass.
+**Also check:** your `clang-format` major version. The repo pins 18; the script
+refuses any other, because output differs between majors and an unpinned
+formatter makes "formatted" mean two different things.
+*(2026-08)*
+
+---
+
+### CI skipped the build and reported green
+
+**Cause (fixed 2026-08):** the change detector returned an empty list when the
+base ref did not resolve — a first push sends an all-zero `before` ref — and
+downstream read empty as "nothing changed". Under-detection is the dangerous
+direction: nothing errors.
+**Fix:** `changedFiles()` returns `UNKNOWN_BASE`, and `computeAffected` treats it
+as a full-gate path. Pinned by `scripts/lib/affected.test.ts`.
+*(2026-08)*

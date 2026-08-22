@@ -1,11 +1,7 @@
 {
   "terminal.integrated.defaultProfile.linux": "Persistent Shell",
   "//": "clangd reads compile_commands.json, symlinked to build/dev by bin/setup.",
-  "clangd.arguments": [
-    "--background-index",
-    "--clang-tidy",
-    "--header-insertion=never"
-  ],
+  "clangd.arguments": ["--background-index", "--clang-tidy", "--header-insertion=never"],
   "cmake.configureOnOpen": false,
   "editor.formatOnSave": true,
   "[cpp]": {

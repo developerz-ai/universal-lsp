@@ -5,7 +5,5 @@
     "biomejs.biome",
     "oven.bun-vscode"
   ],
-  "unwantedRecommendations": [
-    "ms-vscode.cpptools"
-  ]
+  "unwantedRecommendations": ["ms-vscode.cpptools"]
 }

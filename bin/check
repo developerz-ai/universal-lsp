@@ -1,0 +1,8 @@
+#!/usr/bin/env bash
+# The gate. Three tiers — see `bun run scripts/help.ts`.
+#   bin/check --files <paths>   after each edit
+#   bin/check --changed         after a slice compiles
+#   bin/check                   once, before push (sanitizers included)
+set -euo pipefail
+cd "$(dirname "${BASH_SOURCE[0]}")/.."
+exec bun run scripts/check.ts "$@"

@@ -1,0 +1,25 @@
+# Build output
+/build/
+/build-*/
+/out/
+/install/
+*.o
+*.a
+*.so
+*.dylib
+compile_commands.json
+
+# Agent + tooling scratch — disposable by definition, never commit
+/tmp/
+/node_modules/
+/.cache/
+
+# Local overrides (see .env.example)
+.env
+.env.local
+.claude/settings.local.json
+
+# Editor
+.idea/
+*.swp
+.DS_Store

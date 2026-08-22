@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+# Rewrite every tracked C/C++ source with clang-format. No formatting decisions.
+set -euo pipefail
+cd "$(dirname "${BASH_SOURCE[0]}")/.."
+exec bun run scripts/format.ts "$@"

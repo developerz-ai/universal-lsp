@@ -1,0 +1,20 @@
+{
+  "name": "@universal-lsp/repo",
+  "private": true,
+  "type": "module",
+  "description": "Repo tooling for the Universal LSP engine and graph-lite. The shipped binaries are C++ with no runtime dependencies; this manifest exists only for the Bun-TS automation under scripts/.",
+  "scripts": {
+    "setup": "bun run scripts/setup.ts",
+    "check": "bun run scripts/check.ts",
+    "doctor": "bun run scripts/doctor.ts",
+    "fmt": "bun run scripts/format.ts && biome check --write .",
+    "lint": "biome check .",
+    "lint:guards": "bun run scripts/lint/index.ts",
+    "changed": "bun run scripts/changed.ts",
+    "help": "bun run scripts/help.ts",
+    "test:scripts": "bun test scripts/"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "2.4.16"
+  }
+}

@@ -1,0 +1,216 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  BUN_VERSION: '1.4.0'
+
+# RUNNERS: ubuntu-latest, everywhere, deliberately.
+#
+# The house standard is Blacksmith (unmetered, faster disks, sticky caches). This
+# repo is not enrolled, and an un-enrolled Blacksmith label does not fail — no
+# runner is ever assigned, so the required check is ABSENT rather than red and
+# nothing can merge, with no logs to explain why. Moving CI to Blacksmith means
+# enrolling the repo AND updating `scripts/ci-parity.test.ts` in the same commit,
+# with a human deciding.
+#
+# Every command below is defined once, in `scripts/lib/gate.ts`, and run locally
+# by `bin/check`. ci-parity.test.ts fails the build if the two drift: green
+# locally must mean green here, or the agent learns that pushing is how you find
+# out — the slowest possible loop.
+
+jobs:
+  # Which subsystems does this change touch? `scripts/changed.ts` calls the same
+  # computeAffected() the local `bin/check --changed` tier calls, so the two
+  # cannot disagree about what "affected" means.
+  detect:
+    name: Detect affected subsystems
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      build_needed: ${{ steps.detect.outputs.build_needed }}
+      subsystems: ${{ steps.detect.outputs.subsystems }}
+    env:
+      BASE_REF: ${{ github.event_name == 'pull_request' && format('origin/{0}', github.base_ref) || github.event.before }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          fetch-depth: 0
+      - name: Fetch the PR base branch
+        if: github.event_name == 'pull_request'
+        env:
+          BASE_BRANCH: ${{ github.base_ref }}
+        run: git fetch --no-tags --depth=200 origin "+refs/heads/${BASE_BRANCH}:refs/remotes/origin/${BASE_BRANCH}"
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
+        with:
+          bun-version: ${{ env.BUN_VERSION }}
+      - id: detect
+        run: bun run scripts/changed.ts
+
+  # Whole-tree lane. NOT gated on `detect` — a guard whose subject is the repo
+  # must never have its execution gated on a subset of the repo, or the required
+  # check goes green over exactly the diff shape that breaks it (a docs-only PR
+  # is the classic one: it is the shape the vocabulary guard exists to catch).
+  guards:
+    name: Format + guards (whole tree)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
+        with:
+          bun-version: ${{ env.BUN_VERSION }}
+      - run: bun install --frozen-lockfile
+      - name: Install clang-format
+        run: sudo apt-get update && sudo apt-get install -y clang-format
+      - name: C/C++ formatting
+        run: bun run scripts/format.ts --check
+      - name: TypeScript lint + format
+        run: bunx biome check .
+      - name: Repo guards
+        run: bun run scripts/lint/index.ts
+      - name: Guard + detector unit tests
+        run: bun test scripts/
+
+  build:
+    name: Build + test (${{ matrix.compiler }})
+    needs: detect
+    if: needs.detect.outputs.build_needed == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        # Two compilers because -Wconversion, -Wshadow and the standard library's
+        # debug behaviour differ between them, and a warning caught by only one is
+        # caught by neither in practice.
+        include:
+          - compiler: gcc
+            cc: gcc
+            cxx: g++
+          - compiler: clang
+            cc: clang
+            cxx: clang++
+    env:
+      CC: ${{ matrix.cc }}
+      CXX: ${{ matrix.cxx }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - name: Install toolchain
+        run: sudo apt-get update && sudo apt-get install -y ninja-build
+      # GoogleTest is fetched by CMake on first configure; cache the populated
+      # source so a green PR does not re-clone it. A cache miss must rebuild,
+      # never pass — the key is the file that pins the version.
+      - uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          path: build/dev/_deps
+          key: deps-${{ runner.os }}-${{ matrix.compiler }}-${{ hashFiles('cmake/Dependencies.cmake') }}
+          restore-keys: deps-${{ runner.os }}-${{ matrix.compiler }}-
+      - name: Configure
+        run: cmake --preset dev
+      - name: Build
+        run: cmake --build --preset dev
+      - name: Test
+        run: ctest --preset dev
+
+  # graph-lite must configure and build with no knowledge of this repo. Phase 14
+  # (extract it into its own repository) is only cheap while this job is green;
+  # it is the cheapest possible proof, and it runs on every PR.
+  standalone:
+    name: graph-lite standalone
+    needs: detect
+    if: needs.detect.outputs.build_needed == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - name: Install toolchain
+        run: sudo apt-get update && sudo apt-get install -y ninja-build
+      - name: Configure standalone
+        run: cmake -S graph-lite -B build/graph-lite-standalone -G Ninja -DCMAKE_BUILD_TYPE=Debug
+      - name: Build standalone
+        run: cmake --build build/graph-lite-standalone
+
+  # ASan + UBSan from the first commit, not after the first mystery crash: the
+  # hot paths are arena/pmr allocation and CSR indices, where a use-after-free
+  # reads as a wrong answer rather than a crash.
+  sanitizers:
+    name: ASan + UBSan
+    needs: detect
+    if: needs.detect.outputs.build_needed == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - name: Install toolchain
+        run: sudo apt-get update && sudo apt-get install -y ninja-build
+      - name: Configure
+        run: cmake --preset asan
+      - name: Build
+        run: cmake --build --preset asan
+      - name: Test
+        run: ctest --preset asan
+
+  static:
+    name: clang-tidy + actionlint
+    needs: detect
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - name: Install toolchain
+        run: sudo apt-get update && sudo apt-get install -y ninja-build clang-tidy
+      - name: Configure (for compile_commands.json)
+        run: cmake --preset dev
+      - name: clang-tidy
+        run: |
+          mapfile -t files < <(git ls-files '*.cpp' '*.h' '*.hpp' | grep -v '^tests/')
+          if [ ${#files[@]} -eq 0 ]; then echo "no sources yet"; exit 0; fi
+          clang-tidy -p build/dev "${files[@]}"
+      - name: actionlint
+        run: |
+          bash <(curl -sSf https://raw.githubusercontent.com/rhysd/actionlint/main/scripts/download-actionlint.bash)
+          ./actionlint -color
+
+  # The one required check. `if: always()` plus an explicit grade, so a SKIPPED
+  # upstream job can never be read as a pass by a status-check rule that only
+  # knows this job's name.
+  ci:
+    name: Aggregate CI
+    needs: [detect, guards, build, standalone, sanitizers, static]
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Grade the run
+        env:
+          NEEDS: ${{ toJSON(needs) }}
+        run: |
+          echo "$NEEDS"
+          failed=$(echo "$NEEDS" | grep -c '"result": "failure"' || true)
+          cancelled=$(echo "$NEEDS" | grep -c '"result": "cancelled"' || true)
+          if [ "$failed" != "0" ] || [ "$cancelled" != "0" ]; then
+            echo "::error::$failed failed, $cancelled cancelled"
+            exit 1
+          fi
+          echo "all green"

@@ -1,0 +1,27 @@
+# Checks are scoped to what actually bites in this codebase: manual arena/pmr
+# memory management, RAII lifecycle objects (sessions, workspaces, Lua states,
+# graph handles), and the C interop surface with tree-sitter.
+#
+# NOT enabled: readability-* naming enforcement — clang-format owns layout and a
+# naming check that disagrees with it produces two tools fighting over one line.
+Checks: >
+  -*,
+  bugprone-*,
+  -bugprone-easily-swappable-parameters,
+  cert-*,
+  -cert-err58-cpp,
+  clang-analyzer-*,
+  cppcoreguidelines-*,
+  -cppcoreguidelines-avoid-magic-numbers,
+  -cppcoreguidelines-pro-bounds-pointer-arithmetic,
+  -cppcoreguidelines-pro-type-reinterpret-cast,
+  misc-*,
+  -misc-non-private-member-variables-in-classes,
+  modernize-*,
+  -modernize-use-trailing-return-type,
+  performance-*,
+  portability-*
+
+WarningsAsErrors: 'bugprone-*,clang-analyzer-*,performance-*'
+HeaderFilterRegex: '^.*/(graph-lite|engine|analysis|daemon|cli)/.*\.(h|hpp)$'
+FormatStyle: file

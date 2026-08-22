@@ -1,0 +1,8 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Security vulnerability
+    url: https://github.com/developerz-ai/universal-lsp/security/advisories/new
+    about: Report privately. Never open a public issue for a vulnerability.
+  - name: Scope questions
+    url: https://github.com/developerz-ai/universal-lsp/blob/main/docs/spec.md
+    about: What is in scope, and what is deliberately not.

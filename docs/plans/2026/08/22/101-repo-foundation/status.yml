@@ -1,0 +1,20 @@
+plan: 101-repo-foundation
+title: Repository foundation
+status: complete
+created_by: sebi
+worked_by: sebi
+owner: sebi
+percent: 100
+current_focus: ""
+slices:
+  - { file: 01-build-system.md, status: complete, percent: 100 }
+  - { file: 02-gate-and-guards.md, status: complete, percent: 100 }
+  - { file: 03-ci.md, status: complete, percent: 100 }
+  - { file: 04-docs.md, status: complete, percent: 100 }
+  - { file: 05-agent-config.md, status: complete, percent: 100 }
+evidence: []
+notes: >
+  Scaffolding only — no engine implementation. Phase 1 (graph-lite core) starts
+  from here with nothing left to decide about tooling. Runner choice is the one
+  deliberate deviation from house standard; see overview.md risks.
+last_updated: 2026-08-22

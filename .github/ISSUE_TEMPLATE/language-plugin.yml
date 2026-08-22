@@ -1,0 +1,38 @@
+name: Language support
+description: Request or propose support for a language
+labels: ["type:feat", "area:plugins"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        You do not need this repo to ship a plugin — it is a git repository of Lua
+        rule files, installed by URL and pinned to a commit. No approval, no central
+        build step. See [docs/plugins/authoring.md](../blob/main/docs/plugins/authoring.md).
+        File here if you want it in the **official** set, or want help.
+  - type: input
+    id: language
+    attributes:
+      label: Language
+    validations: { required: true }
+  - type: input
+    id: grammar
+    attributes:
+      label: tree-sitter grammar
+      description: Link to an existing grammar, or say none exists.
+    validations: { required: true }
+  - type: dropdown
+    id: tier
+    attributes:
+      label: Tier you need
+      options:
+        - "1 — syntax: highlighting, folding, outline"
+        - "2 — structure: definition, references, rename"
+        - "3 — semantics: types, type diagnostics"
+    validations: { required: true }
+  - type: textarea
+    id: irregular
+    attributes:
+      label: Irregular binding or typing rules
+      description: >
+        The parts a declarative rule set will struggle with — dynamic scoping,
+        macros, unusual import resolution. This is the part that decides the effort.

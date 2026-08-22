@@ -1,0 +1,121 @@
+name: Release
+
+on:
+  push:
+    tags:
+      # Engine releases: v0.1.0. graph-lite is versioned independently and tagged
+      # graph-lite-v0.1.0, so an embedder tracking the library is never forced to
+      # reason about engine version numbers.
+      - 'v*'
+      - 'graph-lite-v*'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  verify:
+    name: Verify the tag builds clean
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
+        with:
+          bun-version: '1.4.0'
+      - run: bun install --frozen-lockfile
+      - name: Install toolchain
+        run: sudo apt-get update && sudo apt-get install -y ninja-build clang-format
+      # A tag is not exempt from the gate. Releasing an untested tree is how a
+      # broken release becomes permanent — the tag is immutable, the mistake is not.
+      - name: Full gate
+        run: bin/check
+
+  package:
+    name: Package ${{ matrix.artifact }}
+    needs: verify
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      matrix:
+        include:
+          - artifact: universal-lsp
+            preset: release
+          - artifact: graph-lite
+            preset: standalone
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - name: Install toolchain
+        run: sudo apt-get update && sudo apt-get install -y ninja-build
+      - name: Build (release)
+        if: matrix.preset == 'release'
+        run: |
+          cmake --preset release
+          cmake --build --preset release
+      # The library ships as sources plus its header, not as a binary: embedders
+      # compile it into their own build with their own flags. A prebuilt .a would
+      # be an ABI promise we are not making before 1.0.
+      - name: Build (graph-lite standalone)
+        if: matrix.preset == 'standalone'
+        run: |
+          cmake -S graph-lite -B build/graph-lite-standalone -G Ninja -DCMAKE_BUILD_TYPE=Release
+          cmake --build build/graph-lite-standalone
+      - name: Package
+        env:
+          ARTIFACT: ${{ matrix.artifact }}
+          REF_NAME: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          out="${ARTIFACT}-${REF_NAME}"
+          mkdir -p "dist/${out}"
+          if [ "$ARTIFACT" = "graph-lite" ]; then
+            cp -r graph-lite/include graph-lite/src graph-lite/CMakeLists.txt \
+                  graph-lite/CMakePresets.json graph-lite/LICENSE graph-lite/README.md \
+                  "dist/${out}/"
+          else
+            cp LICENSE README.md "dist/${out}/"
+            find build/release -maxdepth 1 -type f -executable -exec cp {} "dist/${out}/" \; || true
+          fi
+          tar -C dist -czf "dist/${out}.tar.gz" "${out}"
+          sha256sum "dist/${out}.tar.gz" > "dist/${out}.tar.gz.sha256"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact }}
+          path: dist/*.tar.gz*
+          if-no-files-found: error
+
+  publish:
+    name: Publish the release
+    needs: package
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+      - name: Create the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REF_NAME: ${{ github.ref_name }}
+          REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          # A graph-lite tag releases the library alone; an engine tag releases both.
+          case "$REF_NAME" in
+            graph-lite-v*) title="graph-lite ${REF_NAME#graph-lite-}" ;;
+            *)             title="Universal LSP ${REF_NAME}" ;;
+          esac
+          gh release create "$REF_NAME" \
+            --repo "$REPO" \
+            --title "$title" \
+            --generate-notes \
+            --verify-tag \
+            dist/*.tar.gz dist/*.sha256

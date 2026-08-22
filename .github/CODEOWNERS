@@ -1,0 +1,13 @@
+# Default owner for everything.
+*                       @sebyx07
+
+# The boundary is the thing most likely to be eroded by an innocuous-looking
+# change, so it gets an explicit line rather than inheriting the default.
+/graph-lite/            @sebyx07
+/docs/graph-lite/       @sebyx07
+/tests/graph-lite/      @sebyx07
+
+# The gate and its parity with CI.
+/scripts/lint/          @sebyx07
+/scripts/lib/gate.ts    @sebyx07
+/.github/workflows/     @sebyx07

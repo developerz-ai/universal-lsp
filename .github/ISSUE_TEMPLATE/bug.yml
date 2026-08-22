@@ -1,0 +1,46 @@
+name: Bug
+description: Something behaves incorrectly
+labels: ["type:fix"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Security issue? **Do not file here** — see [SECURITY.md](../blob/main/SECURITY.md).
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: The actual behaviour, and the exact error if there is one.
+    validations: { required: true }
+  - type: textarea
+    id: expected
+    attributes:
+      label: What you expected
+    validations: { required: true }
+  - type: textarea
+    id: repro
+    attributes:
+      label: Smallest reproduction
+      description: >
+        A file that triggers it is worth more than a paragraph describing one.
+        Include the language, the request, and the position if relevant.
+      placeholder: |
+        1. …
+        2. …
+    validations: { required: true }
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options: [graph-lite, engine, analysis, plugins, build/CI, docs, not sure]
+    validations: { required: true }
+  - type: input
+    id: version
+    attributes:
+      label: Version / commit
+    validations: { required: true }
+  - type: input
+    id: env
+    attributes:
+      label: OS, compiler, CMake version
+      placeholder: "Ubuntu 24.04, g++ 13.3, cmake 3.28"

@@ -1,0 +1,40 @@
+#!/usr/bin/env bash
+# Build, run and inspect. One command per question you might have.
+set -euo pipefail
+cd "$(dirname "${BASH_SOURCE[0]}")/.."
+
+cmd="${1:-build}"; shift || true
+
+case "$cmd" in
+  build)
+    preset="${1:-dev}"
+    cmake --preset "$preset" >/dev/null
+    exec cmake --build --preset "$preset"
+    ;;
+  test)
+    # One test file, from a cold shell, no ceremony: bin/dev test <regex>
+    cmake --build --preset dev
+    if [ $# -gt 0 ]; then exec ctest --preset dev -R "$1"; fi
+    exec ctest --preset dev
+    ;;
+  asan)
+    cmake --preset asan >/dev/null
+    cmake --build --preset asan
+    exec ctest --preset asan
+    ;;
+  run)
+    target="${1:?usage: bin/dev run <target>}"
+    cmake --build --preset dev --target "$target"
+    exec "./build/dev/$target"
+    ;;
+  doctor)
+    exec bun run scripts/doctor.ts
+    ;;
+  help|-h|--help)
+    exec bun run scripts/help.ts
+    ;;
+  *)
+    echo "usage: bin/dev [build|test|asan|run|doctor|help]" >&2
+    exit 2
+    ;;
+esac

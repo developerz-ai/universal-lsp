@@ -1,0 +1,75 @@
+# yaml-language-server: $schema=https://coderabbit.ai/integrations/schema.v2.json
+
+language: "en-US"
+tone_instructions: >
+  Be direct, skip nitpicks — the formatter and lint guards own style. Focus on
+  correctness, memory safety, and the repo's two structural rules: graph-lite
+  depends on nothing in this repo and names no consumer concept, and nothing may
+  depend on an external language server or subprocess at runtime. Treat a
+  violation of either as blocking.
+early_access: true
+enable_free_tier: true
+
+reviews:
+  profile: "chill"
+  request_changes_workflow: true
+  high_level_summary: true
+  estimate_code_review_effort: true
+  abort_on_close: true
+  collapse_walkthrough: true
+  sequence_diagrams: true
+  poem: false
+  suggested_labels: true
+  auto_apply_labels: true
+
+  path_filters:
+    - "!**/build/**"
+    - "!**/node_modules/**"
+    - "!**/tmp/**"
+    - "!bun.lock"
+
+  path_instructions:
+    - path: "**/*"
+      instructions: |
+        Conventions live in CLAUDE.md and docs/standards/ — defer to them and cite the rule.
+        Flag: any warning suppression, disabled guard, or skipped test added to get green.
+        Flag: a second code path, shim, or feature flag where one path was replaced incompletely.
+        Flag: a bug fix with no reproducing test.
+        Files over 500 lines, bare std::runtime_error, naked new/delete, owning raw pointers.
+        Review changed lines only. Skip style — clang-format owns it.
+
+    - path: "graph-lite/**"
+      instructions: |
+        BLOCKING: any name borrowed from the consumer domain (symbol, scope, document,
+        hover, diagnostic, plugin, workspace, tree-sitter, lua) — including inside
+        CamelCase or snake_case identifiers such as SymbolNode.
+        BLOCKING: an #include of an engine/analysis header, or a link against a repo target.
+        graph-lite.h is a public contract: an addition is a permanent promise. Say so.
+        Persistence changes need a format version bump and a refusal path for newer files.
+
+    - path: "engine/**"
+      instructions: |
+        BLOCKING: spawning a process, opening a network connection, or depending on an
+        external language server.
+        Offset arithmetic: UTF-16 code units belong on the wire only. Flag any conversion
+        outside the transport boundary, and any indexing that could land mid-character.
+        Background work must be cancellable and superseded when its file becomes interactive.
+        Flag sleep() in tests — the clock should be injected.
+
+    - path: "analysis/**"
+      instructions: |
+        The only layer where both vocabularies may meet. Flag an LSP type passed into a
+        graph-lite call rather than translated at the seam.
+        Node id schemes are one-way doors — a change needs an ADR.
+        Flag deletion paths that could leave an edge pointing at a removed node.
+
+    - path: "plugins/**"
+      instructions: |
+        Callbacks must be pure: no I/O, no globals, no clock. Flag any impurity.
+        An unsupported construct degrades to "unknown", never to a guessed type.
+
+    - path: ".github/workflows/**"
+      instructions: |
+        Every job needs timeout-minutes. Third-party actions pinned to a commit SHA.
+        A gate command changed here must change scripts/lib/gate.ts in the same PR —
+        scripts/ci-parity.test.ts enforces it.

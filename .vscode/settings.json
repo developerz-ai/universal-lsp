@@ -1,0 +1,21 @@
+{
+  "terminal.integrated.defaultProfile.linux": "Persistent Shell",
+  "//": "clangd reads compile_commands.json, symlinked to build/dev by bin/setup.",
+  "clangd.arguments": [
+    "--background-index",
+    "--clang-tidy",
+    "--header-insertion=never"
+  ],
+  "cmake.configureOnOpen": false,
+  "editor.formatOnSave": true,
+  "[cpp]": {
+    "editor.defaultFormatter": "llvm-vs-code-extensions.vscode-clangd"
+  },
+  "files.associations": {
+    "*.h": "cpp"
+  },
+  "search.exclude": {
+    "build/**": true,
+    "node_modules/**": true
+  }
+}

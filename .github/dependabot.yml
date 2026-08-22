@@ -1,0 +1,13 @@
+version: 2
+updates:
+  # Actions only. The shipped binaries have no runtime dependencies, and the one
+  # build-time dependency (GoogleTest) is pinned in cmake/Dependencies.cmake
+  # deliberately — a floating test framework makes a red run ambiguous between
+  # "my change" and "their release".
+  - package-ecosystem: github-actions
+    directory: /
+    schedule: { interval: weekly }
+    commit-message: { prefix: "chore" }
+    groups:
+      actions:
+        patterns: ["*"]

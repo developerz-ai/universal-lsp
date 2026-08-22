@@ -1,0 +1,43 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-settings.json",
+  "permissions": {
+    "allow": [
+      "Bash(bin/*)",
+      "Bash(bun *)",
+      "Bash(bunx biome *)",
+      "Bash(cmake *)",
+      "Bash(ctest *)",
+      "Bash(clang-format *)",
+      "Bash(clang-tidy *)",
+      "Bash(git status)",
+      "Bash(git diff:*)",
+      "Bash(git log:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(git push:*)",
+      "Bash(git fetch:*)",
+      "Bash(git checkout:*)",
+      "Bash(gh issue *)",
+      "Bash(gh pr *)",
+      "Bash(gh run view:*)",
+      "Bash(gh api:*)",
+      "WebSearch"
+    ],
+    "deny": ["Bash(git push --force*)", "Bash(git stash*)", "Bash(rm -rf /*)"],
+    "defaultMode": "acceptEdits"
+  },
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write|MultiEdit",
+        "paths": ["**/*.cpp", "**/*.h", "**/*.hpp", "**/*.c"],
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bun run \"${CLAUDE_PROJECT_DIR:-.}/scripts/format.ts\""
+          }
+        ]
+      }
+    ]
+  }
+}

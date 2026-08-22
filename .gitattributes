@@ -1,0 +1,7 @@
+* text=auto eol=lf
+
+# Fixtures for the position-encoding suite carry deliberate byte sequences —
+# any normalisation here silently rewrites the thing under test.
+tests/**/fixtures/** -text -diff
+*.png binary
+*.so binary

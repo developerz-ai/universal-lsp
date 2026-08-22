@@ -1,0 +1,38 @@
+name: Feature
+description: Propose a capability
+labels: ["type:feat"]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: The problem
+      description: >
+        What breaks, or what is impossible, today. Not the solution — the problem.
+        A proposal that arrives only as a solution usually gets redesigned.
+    validations: { required: true }
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed shape
+    validations: { required: true }
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: Including "do nothing" — sometimes it wins.
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options: [graph-lite, engine, analysis, plugins, build/CI, docs]
+    validations: { required: true }
+  - type: checkboxes
+    id: constraints
+    attributes:
+      label: Constraints this respects
+      description: These are non-negotiable — see docs/spec.md §4.
+      options:
+        - label: Needs no external language server, binary, or network service at runtime
+          required: true
+        - label: Does not make graph-lite depend on, or know about, the engine
+          required: true

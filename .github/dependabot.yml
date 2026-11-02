@@ -7,6 +7,7 @@ updates:
   - package-ecosystem: github-actions
     directory: /
     schedule: { interval: weekly }
+    cooldown: { default-days: 14 } # a compromised release gets caught first; security updates are unaffected
     commit-message: { prefix: "chore" }
     groups:
       actions:

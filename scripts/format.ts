@@ -21,8 +21,9 @@ import { Glob } from 'bun';
 import { has, run, runOrThrow } from './lib/cmd.ts';
 import { REPO_ROOT } from './lib/git.ts';
 import { fail, ok, step } from './lib/log.ts';
+import { CLANG_FORMAT_MAJOR } from './lib/prereqs.ts';
 
-const REQUIRED_MAJOR = 18;
+const REQUIRED_MAJOR = CLANG_FORMAT_MAJOR;
 const BIN = process.env.CLANG_FORMAT || 'clang-format';
 
 const SOURCES = '{graph-lite,engine,analysis,daemon,cli,tests,plugins}/**/*.{cpp,h,hpp,c,cc}';

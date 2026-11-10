@@ -114,6 +114,13 @@ const char* graph_lite_status_string(graph_lite_status status);
  *          GRAPH_LITE_ERR_BUFFER_TOO_SMALL, stores the required count in
  *          *out_count, and leaves the buffer untouched.
  *
+ * OOM      A mutating call that fails with GRAPH_LITE_ERR_OUT_OF_MEMORY never
+ *          leaves the store half-written: the id it would have issued does not
+ *          exist, counts name only entities the store holds, and every query
+ *          answers exactly for what survived. A refused node_remove may
+ *          already have drained its incident edges — that drain is
+ *          allocation-free and commits first.
+ *
  * THREADS  Single-writer. The store holds no lock; concurrent use must be
  *          serialized by the caller.
  */

@@ -25,24 +25,36 @@ uint64_t SlotPool::alloc(uint64_t cap) {
     return begin;
 }
 
+void SlotPool::undo_alloc(uint64_t size) {
+    assert(size <= cells_.size() && "undo_alloc past the pool end");
+    cells_.resize(static_cast<size_t>(size));
+}
+
 void SlotPool::release(uint64_t begin, uint64_t cap) {
     if (cap == 0)
         return;
-    free_cells_ += cap;
 
     // Merge with whichever neighbours are also free — one hash lookup per
-    // side. Right first (the right gap's key would move), then left.
+    // side. Right first (the right gap's key would move), then left. The only
+    // fallible step is the merged region's insert, and it runs before anything
+    // is erased or counted: a throw leaves gaps_ and free_cells_ exactly as
+    // they were, so the caller still owns the run and a retry re-releases it
+    // once, never half-committed or twice-counted.
+    uint64_t merged = cap;
     const auto right = gaps_.find(begin + cap);
-    if (right != gaps_.end()) {
-        cap += right->second;
-        gaps_.erase(right);
-    }
+    if (right != gaps_.end())
+        merged += right->second;
     const auto left = gaps_.find(begin);
     if (left != gaps_.end()) {
-        left->second += cap;
+        if (right != gaps_.end())
+            gaps_.erase(right);
+        left->second += merged;
     } else {
-        gaps_.emplace(begin, cap);
+        gaps_.emplace(begin, merged); // strong guarantee: a throw changes nothing
+        if (right != gaps_.end())
+            gaps_.erase(begin + cap); // by key — the insert may have rehashed
     }
+    free_cells_ += merged;
 }
 
 bool SlotPool::grow_in_place(Run& run, uint64_t new_cap) {
@@ -52,10 +64,12 @@ bool SlotPool::grow_in_place(Run& run, uint64_t new_cap) {
         return false;
     const uint64_t at = it->first;
     const uint64_t cap = it->second;
-    gaps_.erase(it);
-    free_cells_ -= need;
+    // Insert the re-keyed remainder before erasing the absorbed gap: the
+    // insert is the only fallible step, and on a throw nothing has changed.
     if (cap > need)
         gaps_.emplace(at + need, cap - need);
+    gaps_.erase(at); // by key — the insert above may have rehashed
+    free_cells_ -= need;
     run.cap = new_cap;
     return true;
 }
@@ -86,9 +100,15 @@ uint64_t SlotPool::memory_bytes() const {
 
 graph_lite_status Store::node_add(uint64_t type, graph_lite_id* out_id) {
     assert(out_id != nullptr && "null out_id is rejected at the C seam");
-    const graph_lite_id id = next_node_id_++;
+    const graph_lite_id id = next_node_id_;
     node_index_.emplace(id, static_cast<uint64_t>(nodes_.size()));
-    nodes_.push_back(NodeRec{id, type, Run{}, Run{}});
+    try {
+        nodes_.push_back(NodeRec{id, type, Run{}, Run{}});
+    } catch (...) {
+        node_index_.erase(id); // roll the index back — no-throw
+        throw;
+    }
+    next_node_id_ = id + 1; // the id is issued only once its record exists
     *out_id = id;
     return GRAPH_LITE_OK;
 }
@@ -108,14 +128,19 @@ graph_lite_status Store::node_remove(graph_lite_id id) {
     while (doomed.in.len > 0)
         edge_remove_at(in_pool_.cell(doomed.in, doomed.in.len - 1));
 
-    if (doomed.out.cap > 0)
+    // Each release commits alone: zeroing the run right after it succeeds
+    // keeps a later throw from leaving a live record whose cells are already
+    // on the free list — the shape where a retry re-releases the same cells
+    // and another node's growth claims them. A zeroed run also never reaches
+    // compaction with stale begin/cap to repack.
+    if (doomed.out.cap > 0) {
         out_pool_.release(doomed.out.begin, doomed.out.cap);
-    if (doomed.in.cap > 0)
+        doomed.out = Run{};
+    }
+    if (doomed.in.cap > 0) {
         in_pool_.release(doomed.in.begin, doomed.in.cap);
-    // Zero the runs before compaction: the record is dead, and stale begin/cap
-    // would make the repack copy cells that are already on the free list.
-    doomed.out = Run{};
-    doomed.in = Run{};
+        doomed.in = Run{};
+    }
     maybe_compact(out_pool_, true);
     maybe_compact(in_pool_, false);
 
@@ -164,7 +189,7 @@ graph_lite_status Store::edge_add(graph_lite_id from, graph_lite_id to, uint64_t
         return s;
 
     EdgeRec rec;
-    rec.id = next_edge_id_++;
+    rec.id = next_edge_id_;
     rec.from = from;
     rec.to = to;
     rec.type = type;
@@ -173,13 +198,19 @@ graph_lite_status Store::edge_add(graph_lite_id from, graph_lite_id to, uint64_t
 
     const uint64_t slot = static_cast<uint64_t>(edges_.size());
     edges_.push_back(rec);
-    edge_index_.emplace(rec.id, slot);
+    try {
+        edge_index_.emplace(rec.id, slot);
+    } catch (...) {
+        edges_.pop_back(); // roll the orphan record back — no-throw
+        throw;
+    }
 
     out_pool_.cell(fn.out, rec.out_pos) = slot;
     fn.out.len += 1;
     in_pool_.cell(tn.in, rec.in_pos) = slot;
     tn.in.len += 1;
 
+    next_edge_id_ = rec.id + 1; // issued only once both directions point at it
     *out_id = rec.id;
     return GRAPH_LITE_OK;
 }
@@ -316,8 +347,14 @@ graph_lite_status Store::grow_run(SlotPool& pool, Run& run, bool out_side) {
         std::memcpy(pool.data() + static_cast<size_t>(fresh),
                     pool.data() + static_cast<size_t>(run.begin),
                     static_cast<size_t>(run.len) * sizeof(uint64_t));
-        if (run.cap > 0)
-            pool.release(run.begin, run.cap);
+        if (run.cap > 0) {
+            try {
+                pool.release(run.begin, run.cap);
+            } catch (...) {
+                pool.undo_alloc(fresh); // the fresh cells belong to no one yet
+                throw;
+            }
+        }
         run.begin = fresh;
         run.cap = new_cap;
     }

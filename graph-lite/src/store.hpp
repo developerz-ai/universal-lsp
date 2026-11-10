@@ -67,12 +67,22 @@ public:
     // read it.
     uint64_t alloc(uint64_t cap);
 
+    // Give back a tail alloc() reserved but the caller never committed to —
+    // the rollback half of a relocation whose release failed. No run or gap
+    // references cells at or past `size`; shrinking never reallocates.
+    void undo_alloc(uint64_t size);
+
     // Return a run's cells to the free pool, merging with whichever adjacent
     // regions are also free, so gaps stay hole-per-region, not hole-per-run.
+    // Commits atomically: the only allocation — recording the merged region —
+    // happens before anything is erased or counted, so a failed release leaves
+    // the pool untouched and the caller still owning the run.
     void release(uint64_t begin, uint64_t cap);
 
     // Widen run to new_cap by absorbing the gap that starts immediately after
-    // it. False means the caller must relocate (alloc, copy, release).
+    // it. False means the caller must relocate (alloc, copy, release). The
+    // absorb commits atomically: the remainder is re-keyed before the old gap
+    // is erased, so a failed widen changes nothing.
     bool grow_in_place(Run& run, uint64_t new_cap);
 
     // Cell access by run position — the only way in or out of the pool.

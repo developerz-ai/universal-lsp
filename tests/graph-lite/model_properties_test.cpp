@@ -10,6 +10,69 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <cstdlib>
+#include <new>
+#include <string>
+
+namespace {
+
+bool fail_allocations = false;
+
+template <typename Fn>
+graph_lite_status call_with_allocations_disabled(Fn&& fn, bool* threw) {
+    fail_allocations = true;
+    try {
+        const graph_lite_status status = fn();
+        fail_allocations = false;
+        return status;
+    } catch (const std::bad_alloc&) {
+        fail_allocations = false;
+        *threw = true;
+        return GRAPH_LITE_ERR_OUT_OF_MEMORY;
+    }
+}
+
+} // namespace
+
+void* operator new(std::size_t size) {
+    if (fail_allocations)
+        throw std::bad_alloc();
+    if (void* allocation = std::malloc(size))
+        return allocation;
+    throw std::bad_alloc();
+}
+
+void* operator new[](std::size_t size) {
+    return operator new(size);
+}
+
+void* operator new(std::size_t size, const std::nothrow_t&) noexcept {
+    try {
+        return operator new(size);
+    } catch (const std::bad_alloc&) {
+        return nullptr;
+    }
+}
+
+void* operator new[](std::size_t size, const std::nothrow_t&) noexcept {
+    return operator new(size, std::nothrow);
+}
+
+void operator delete(void* allocation) noexcept {
+    std::free(allocation);
+}
+
+void operator delete(void* allocation, std::size_t) noexcept {
+    std::free(allocation);
+}
+
+void operator delete[](void* allocation) noexcept {
+    std::free(allocation);
+}
+
+void operator delete[](void* allocation, std::size_t) noexcept {
+    std::free(allocation);
+}
 
 // --- properties ------------------------------------------------------------
 
@@ -160,6 +223,41 @@ TEST(Model, PropertyOnMissingOwnerOrKeyIsNotFound) {
               GRAPH_LITE_ERR_NOT_FOUND);
     EXPECT_EQ(graph_lite_remove_property(g.get(), GRAPH_LITE_NODE, 9999, "k"),
               GRAPH_LITE_ERR_NOT_FOUND);
+}
+
+TEST(Model, LongPropertyKeysDoNotAllocateDuringReadOrRemoval) {
+    auto g = make_graph();
+    const auto n = add_node(g.get());
+    const std::string key(128, 'k');
+    ASSERT_EQ(graph_lite_set_int(g.get(), GRAPH_LITE_NODE, n, key.c_str(), 42), GRAPH_LITE_OK);
+
+    int64_t value = 0;
+    bool threw = false;
+    EXPECT_EQ(
+        call_with_allocations_disabled(
+            [&] { return graph_lite_get_int(g.get(), GRAPH_LITE_NODE, n, key.c_str(), &value); },
+            &threw),
+        GRAPH_LITE_OK);
+    EXPECT_FALSE(threw);
+    EXPECT_EQ(value, 42);
+
+    graph_lite_value_kind kind = GRAPH_LITE_VALUE_STRING;
+    EXPECT_EQ(call_with_allocations_disabled(
+                  [&] {
+                      return graph_lite_property_kind(g.get(), GRAPH_LITE_NODE, n, key.c_str(),
+                                                      &kind);
+                  },
+                  &threw),
+              GRAPH_LITE_OK);
+    EXPECT_FALSE(threw);
+    EXPECT_EQ(kind, GRAPH_LITE_VALUE_INT);
+
+    EXPECT_EQ(
+        call_with_allocations_disabled(
+            [&] { return graph_lite_remove_property(g.get(), GRAPH_LITE_NODE, n, key.c_str()); },
+            &threw),
+        GRAPH_LITE_OK);
+    EXPECT_FALSE(threw);
 }
 
 TEST(Model, NullArgumentsAndUnknownKindAreInvalidArgument) {

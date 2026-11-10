@@ -382,6 +382,19 @@ TEST(Model, RemoveNodeRemovesEveryIncidentEdge) {
     EXPECT_EQ(to, c);
 }
 
+TEST(Model, RemoveHighDegreeNodeRemovesAllOutgoingEdges) {
+    constexpr size_t kDegree = 4096;
+    auto g = make_graph();
+    const auto hub = add_node(g.get());
+    for (size_t i = 0; i < kDegree; ++i)
+        add_edge(g.get(), hub, add_node(g.get()));
+
+    ASSERT_EQ(graph_lite_edge_count(g.get()), kDegree);
+    ASSERT_EQ(graph_lite_remove_node(g.get(), hub), GRAPH_LITE_OK);
+    EXPECT_EQ(graph_lite_edge_count(g.get()), 0u);
+    EXPECT_EQ(graph_lite_node_count(g.get()), kDegree);
+}
+
 TEST(Model, RemoveNodeErasesIncidentEdgeProperties) {
     auto g = make_graph();
     const auto a = add_node(g.get());

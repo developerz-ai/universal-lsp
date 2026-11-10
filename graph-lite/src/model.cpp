@@ -58,6 +58,13 @@ bool valid_kind(graph_lite_kind kind) {
     return kind == GRAPH_LITE_NODE || kind == GRAPH_LITE_EDGE;
 }
 
+// Property keys enter through the C ABI as C strings. Compare them directly so
+// reads and removal need no temporary std::string allocation.
+auto find_key(const PropertyMap& properties, const char* key) {
+    return std::find_if(properties.begin(), properties.end(),
+                        [key](const auto& property) { return property.first == key; });
+}
+
 // Runs fn, turning an allocation failure into the status the ABI promises. No
 // exception may cross an extern "C" boundary.
 template <typename Fn>
@@ -149,7 +156,7 @@ const PropertyValue* find_property(const graph_lite_graph* g, graph_lite_kind ki
         *status = GRAPH_LITE_ERR_NOT_FOUND;
         return nullptr;
     }
-    const auto prop = owner->second.find(key);
+    const auto prop = find_key(owner->second, key);
     if (prop == owner->second.end()) {
         *status = GRAPH_LITE_ERR_NOT_FOUND;
         return nullptr;
@@ -210,13 +217,23 @@ graph_lite_status graph_lite_remove_node(graph_lite_graph* g, graph_lite_id id) 
         if (it == g->nodes.end())
             return GRAPH_LITE_ERR_NOT_FOUND;
 
-        // Copy first: erase_edge edits the very vectors being walked. A self-loop is
-        // in both lists, so the second visit finds it already gone.
+        // Copy first because the node record is about to go away. Do not call
+        // erase_edge here: compacting this node's adjacency for each incident edge
+        // makes a high-degree star quadratic. Only live neighbours need unlinking.
         std::vector<graph_lite_id> incident = it->second.out;
         incident.insert(incident.end(), it->second.in.begin(), it->second.in.end());
         for (const graph_lite_id edge : incident) {
-            if (g->edges.count(edge) != 0)
-                g->erase_edge(edge);
+            const auto edge_it = g->edges.find(edge);
+            if (edge_it == g->edges.end())
+                continue; // self-loop already removed from the other list
+
+            const EdgeRecord record = edge_it->second;
+            if (record.from != id)
+                unlink(g->nodes.at(record.from).out, edge);
+            if (record.to != id)
+                unlink(g->nodes.at(record.to).in, edge);
+            g->edge_properties.erase(edge);
+            g->edges.erase(edge_it);
         }
         g->node_properties.erase(id);
         g->nodes.erase(id);
@@ -327,65 +344,77 @@ graph_lite_status graph_lite_set_string(graph_lite_graph* g, graph_lite_kind kin
 graph_lite_status graph_lite_property_kind(const graph_lite_graph* g, graph_lite_kind kind,
                                            graph_lite_id id, const char* key,
                                            graph_lite_value_kind* out) {
-    graph_lite_status status;
-    const PropertyValue* value = find_property(g, kind, id, key, out, &status);
-    if (!value)
-        return status;
-    // The variant alternatives are declared in graph_lite_value_kind order.
-    *out = static_cast<graph_lite_value_kind>(value->index());
-    return GRAPH_LITE_OK;
+    return guarded([&] {
+        graph_lite_status status;
+        const PropertyValue* value = find_property(g, kind, id, key, out, &status);
+        if (!value)
+            return status;
+        // The variant alternatives are declared in graph_lite_value_kind order.
+        *out = static_cast<graph_lite_value_kind>(value->index());
+        return GRAPH_LITE_OK;
+    });
 }
 
 graph_lite_status graph_lite_get_int(const graph_lite_graph* g, graph_lite_kind kind,
                                      graph_lite_id id, const char* key, int64_t* out) {
-    return get_typed(g, kind, id, key, out);
+    return guarded([&] { return get_typed(g, kind, id, key, out); });
 }
 
 graph_lite_status graph_lite_get_double(const graph_lite_graph* g, graph_lite_kind kind,
                                         graph_lite_id id, const char* key, double* out) {
-    return get_typed(g, kind, id, key, out);
+    return guarded([&] { return get_typed(g, kind, id, key, out); });
 }
 
 graph_lite_status graph_lite_get_bool(const graph_lite_graph* g, graph_lite_kind kind,
                                       graph_lite_id id, const char* key, int* out) {
-    bool value = false;
-    if (!out)
-        return GRAPH_LITE_ERR_INVALID_ARGUMENT;
-    const graph_lite_status status = get_typed(g, kind, id, key, &value);
-    if (status == GRAPH_LITE_OK)
-        *out = value ? 1 : 0;
-    return status;
+    return guarded([&] {
+        bool value = false;
+        if (!out)
+            return GRAPH_LITE_ERR_INVALID_ARGUMENT;
+        const graph_lite_status status = get_typed(g, kind, id, key, &value);
+        if (status == GRAPH_LITE_OK)
+            *out = value ? 1 : 0;
+        return status;
+    });
 }
 
 graph_lite_status graph_lite_get_string(const graph_lite_graph* g, graph_lite_kind kind,
                                         graph_lite_id id, const char* key, char* buf, size_t cap,
                                         size_t* len) {
-    graph_lite_status status;
-    const PropertyValue* value = find_property(g, kind, id, key, len, &status);
-    if (!value)
-        return status;
-    const std::string* text = std::get_if<std::string>(value);
-    if (!text || (!buf && cap != 0))
-        return GRAPH_LITE_ERR_INVALID_ARGUMENT;
-    *len = text->size();
-    if (cap < text->size() + 1)
-        return GRAPH_LITE_ERR_BUFFER_TOO_SMALL;
-    std::copy(text->begin(), text->end(), buf);
-    buf[text->size()] = '\0';
-    return GRAPH_LITE_OK;
+    return guarded([&] {
+        graph_lite_status status;
+        const PropertyValue* value = find_property(g, kind, id, key, len, &status);
+        if (!value)
+            return status;
+        const std::string* text = std::get_if<std::string>(value);
+        if (!text || (!buf && cap != 0))
+            return GRAPH_LITE_ERR_INVALID_ARGUMENT;
+        *len = text->size();
+        if (cap < text->size() + 1)
+            return GRAPH_LITE_ERR_BUFFER_TOO_SMALL;
+        std::copy(text->begin(), text->end(), buf);
+        buf[text->size()] = '\0';
+        return GRAPH_LITE_OK;
+    });
 }
 
 graph_lite_status graph_lite_remove_property(graph_lite_graph* g, graph_lite_kind kind,
                                              graph_lite_id id, const char* key) {
     if (!g || !key || !valid_kind(kind))
         return GRAPH_LITE_ERR_INVALID_ARGUMENT;
-    PropertyTable& table = g->properties(kind);
-    const auto owner = table.find(id);
-    if (owner == table.end() || owner->second.erase(key) == 0)
-        return GRAPH_LITE_ERR_NOT_FOUND;
-    if (owner->second.empty())
-        table.erase(owner);
-    return GRAPH_LITE_OK;
+    return guarded([&] {
+        PropertyTable& table = g->properties(kind);
+        const auto owner = table.find(id);
+        if (owner == table.end())
+            return GRAPH_LITE_ERR_NOT_FOUND;
+        const auto property = find_key(owner->second, key);
+        if (property == owner->second.end())
+            return GRAPH_LITE_ERR_NOT_FOUND;
+        owner->second.erase(property);
+        if (owner->second.empty())
+            table.erase(owner);
+        return GRAPH_LITE_OK;
+    });
 }
 
 } // extern "C"

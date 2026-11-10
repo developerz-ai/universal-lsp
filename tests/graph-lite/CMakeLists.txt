@@ -10,6 +10,10 @@ ulsp_add_test(graph_lite_store_test
     SOURCES store_test.cpp
     LINK    graph-lite::graph-lite)
 
+ulsp_add_test(graph_lite_slot_pool_test
+    SOURCES slot_pool_test.cpp
+    LINK    graph-lite::graph-lite)
+
 # Allocation-failure suite: a refusal at any allocation point of a mutating
 # entry point surfaces as a status code (OOM from create), never as an
 # exception escaping the C boundary.

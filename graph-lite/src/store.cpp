@@ -54,7 +54,7 @@ void SlotPool::release(uint64_t begin, uint64_t cap) {
         if (right != gaps_.end())
             gaps_.erase(begin + cap); // by key — the insert may have rehashed
     }
-    free_cells_ += merged;
+    free_cells_ += cap;
 }
 
 bool SlotPool::grow_in_place(Run& run, uint64_t new_cap) {

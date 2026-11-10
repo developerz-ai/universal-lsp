@@ -145,5 +145,212 @@ int graph_lite_c_abi_smoke(void) {
     }
     graph_lite_graph_destroy(0); /* NULL destroy is a no-op */
 
+    /* ---- the cursor surface: handles, snapshots, END, and the two-call drain ---- */
+    {
+        graph_lite_graph* cg = 0;
+        graph_lite_cursor* cur = 0;
+        graph_lite_cursor* other = 0;
+        graph_lite_id n1 = 0, n2 = 0, n3 = 0;
+        graph_lite_id e1 = 0, e2 = 0, e3 = 0;
+        graph_lite_id got = 0;
+        graph_lite_id buf[8];
+        uint64_t need = 0;
+        int i;
+
+        /* ids and tags are 64-bit on every platform: bindings pin this width. */
+        if (sizeof(graph_lite_id) != 8 || sizeof(graph_lite_tag) != 8)
+            return 40;
+        if ((int)GRAPH_LITE_ERR_END != 8 || (int)GRAPH_LITE_ERR_BUFFER_TOO_SMALL != 7)
+            return 41;
+        text = graph_lite_status_string(GRAPH_LITE_ERR_END);
+        if (text == 0 || text[0] == '\0')
+            return 42;
+        if (graph_lite_status_string((graph_lite_status)-1) == 0 ||
+            graph_lite_status_string((graph_lite_status)0x7fffffff) == 0)
+            return 43;
+
+        /* n1 -> n2 twice (parallel edges), n2 -> n3 once. */
+        if (graph_lite_graph_create(&cg) != GRAPH_LITE_OK || cg == 0)
+            return 44;
+        if (graph_lite_add_node(cg, 1, &n1) != GRAPH_LITE_OK ||
+            graph_lite_add_node(cg, 1, &n2) != GRAPH_LITE_OK ||
+            graph_lite_add_node(cg, 1, &n3) != GRAPH_LITE_OK)
+            return 45;
+        if (graph_lite_add_edge(cg, n1, n2, 2, &e1) != GRAPH_LITE_OK ||
+            graph_lite_add_edge(cg, n1, n2, 2, &e2) != GRAPH_LITE_OK ||
+            graph_lite_add_edge(cg, n2, n3, 2, &e3) != GRAPH_LITE_OK)
+            return 46;
+
+        /* Argument validation: NULL handles and unknown kinds are INVALID_ARGUMENT,
+           and *out is written on success only. */
+        if (graph_lite_cursor_open(0, GRAPH_LITE_CURSOR_NODES, 0, &cur) !=
+                GRAPH_LITE_ERR_INVALID_ARGUMENT ||
+            cur != 0)
+            return 47;
+        if (graph_lite_cursor_open(cg, GRAPH_LITE_CURSOR_NODES, 0, 0) !=
+            GRAPH_LITE_ERR_INVALID_ARGUMENT)
+            return 48;
+        if (graph_lite_cursor_open(cg, (graph_lite_cursor_kind)99, 0, &cur) !=
+                GRAPH_LITE_ERR_INVALID_ARGUMENT ||
+            cur != 0)
+            return 49;
+        if (graph_lite_cursor_next(0, &got) != GRAPH_LITE_ERR_INVALID_ARGUMENT)
+            return 50;
+        if (graph_lite_cursor_drain(0, buf, 8, &need) != GRAPH_LITE_ERR_INVALID_ARGUMENT)
+            return 51;
+        graph_lite_cursor_destroy(0); /* NULL destroy is a no-op */
+
+        /* Adjacency kinds: an absent node is NOT_FOUND, and so is id 0. */
+        if (graph_lite_cursor_open(cg, GRAPH_LITE_CURSOR_OUT_EDGES, n3 + 100, &cur) !=
+                GRAPH_LITE_ERR_NOT_FOUND ||
+            cur != 0)
+            return 52;
+        if (graph_lite_cursor_open(cg, GRAPH_LITE_CURSOR_IN_NEIGHBORS, 0, &cur) !=
+                GRAPH_LITE_ERR_NOT_FOUND ||
+            cur != 0)
+            return 53;
+
+        /* NODES: ascending, then END with *out_id untouched, and END is sticky. */
+        if (graph_lite_cursor_open(cg, GRAPH_LITE_CURSOR_NODES, 0, &cur) != GRAPH_LITE_OK ||
+            cur == 0)
+            return 54;
+        if (graph_lite_cursor_next(cur, &got) != GRAPH_LITE_OK || got != n1)
+            return 55;
+        if (graph_lite_cursor_next(cur, &got) != GRAPH_LITE_OK || got != n2)
+            return 56;
+        if (graph_lite_cursor_next(cur, &got) != GRAPH_LITE_OK || got != n3)
+            return 57;
+        got = 777;
+        for (i = 0; i < 2; ++i) {
+            if (graph_lite_cursor_next(cur, &got) != GRAPH_LITE_ERR_END || got != 777)
+                return 58;
+        }
+        if (graph_lite_cursor_next(cur, 0) != GRAPH_LITE_ERR_INVALID_ARGUMENT)
+            return 59;
+        graph_lite_cursor_destroy(cur);
+        cur = 0;
+
+        /* EDGES: ascending; the node argument is ignored. */
+        if (graph_lite_cursor_open(cg, GRAPH_LITE_CURSOR_EDGES, 12345, &cur) != GRAPH_LITE_OK)
+            return 60;
+        if (graph_lite_cursor_next(cur, &got) != GRAPH_LITE_OK || got != e1)
+            return 61;
+        if (graph_lite_cursor_next(cur, &got) != GRAPH_LITE_OK || got != e2)
+            return 62;
+        if (graph_lite_cursor_next(cur, &got) != GRAPH_LITE_OK || got != e3)
+            return 63;
+        if (graph_lite_cursor_next(cur, &got) != GRAPH_LITE_ERR_END)
+            return 64;
+        graph_lite_cursor_destroy(cur);
+        cur = 0;
+
+        /* OUT_EDGES / IN_EDGES: ascending edge ids. */
+        if (graph_lite_cursor_open(cg, GRAPH_LITE_CURSOR_OUT_EDGES, n1, &cur) != GRAPH_LITE_OK)
+            return 65;
+        if (graph_lite_cursor_drain(cur, buf, 8, &need) != GRAPH_LITE_OK || need != 2 ||
+            buf[0] != e1 || buf[1] != e2)
+            return 66;
+        graph_lite_cursor_destroy(cur);
+        cur = 0;
+        if (graph_lite_cursor_open(cg, GRAPH_LITE_CURSOR_IN_EDGES, n2, &cur) != GRAPH_LITE_OK)
+            return 67;
+        if (graph_lite_cursor_drain(cur, buf, 8, &need) != GRAPH_LITE_OK || need != 2 ||
+            buf[0] != e1 || buf[1] != e2)
+            return 68;
+        graph_lite_cursor_destroy(cur);
+        cur = 0;
+
+        /* OUT_NEIGHBORS / IN_NEIGHBORS: order unspecified, parallel edges repeat. */
+        if (graph_lite_cursor_open(cg, GRAPH_LITE_CURSOR_OUT_NEIGHBORS, n1, &cur) != GRAPH_LITE_OK)
+            return 69;
+        if (graph_lite_cursor_drain(cur, buf, 8, &need) != GRAPH_LITE_OK || need != 2 ||
+            buf[0] != n2 || buf[1] != n2)
+            return 70;
+        graph_lite_cursor_destroy(cur);
+        cur = 0;
+        if (graph_lite_cursor_open(cg, GRAPH_LITE_CURSOR_IN_NEIGHBORS, n2, &cur) != GRAPH_LITE_OK)
+            return 71;
+        if (graph_lite_cursor_drain(cur, buf, 8, &need) != GRAPH_LITE_OK || need != 2 ||
+            buf[0] != n1 || buf[1] != n1)
+            return 72;
+        graph_lite_cursor_destroy(cur);
+        cur = 0;
+
+        /* A node with no out-edges yields an empty cursor, not an error. */
+        if (graph_lite_cursor_open(cg, GRAPH_LITE_CURSOR_OUT_EDGES, n3, &cur) != GRAPH_LITE_OK)
+            return 73;
+        if (graph_lite_cursor_next(cur, &got) != GRAPH_LITE_ERR_END)
+            return 74;
+        graph_lite_cursor_destroy(cur);
+        cur = 0;
+
+        /* Drain size query: NULL/0 reports the required count, writes nothing and
+           does not advance. Sentinel buffers prove "writes nothing". */
+        if (graph_lite_cursor_open(cg, GRAPH_LITE_CURSOR_NODES, 0, &cur) != GRAPH_LITE_OK)
+            return 75;
+        need = 0;
+        if (graph_lite_cursor_drain(cur, 0, 0, &need) != GRAPH_LITE_ERR_BUFFER_TOO_SMALL ||
+            need != 3)
+            return 76;
+        for (i = 0; i < 8; ++i)
+            buf[i] = 555;
+        need = 0;
+        if (graph_lite_cursor_drain(cur, buf, 2, &need) != GRAPH_LITE_ERR_BUFFER_TOO_SMALL ||
+            need != 3)
+            return 77;
+        if (buf[0] != 555 || buf[1] != 555 || buf[2] != 555)
+            return 78;
+        if (graph_lite_cursor_drain(cur, 0, 5, &need) != GRAPH_LITE_ERR_INVALID_ARGUMENT)
+            return 79; /* NULL buffer with a non-zero capacity is a caller bug */
+        if (graph_lite_cursor_next(cur, &got) != GRAPH_LITE_OK || got != n1)
+            return 81; /* none of the failed drains advanced the cursor */
+
+        /* Remaining count after a partial consume, then a correctly sized drain. */
+        need = 0;
+        if (graph_lite_cursor_drain(cur, 0, 0, &need) != GRAPH_LITE_ERR_BUFFER_TOO_SMALL ||
+            need != 2)
+            return 82;
+        if (graph_lite_cursor_drain(cur, buf, 2, &need) != GRAPH_LITE_OK || need != 2 ||
+            buf[0] != n2 || buf[1] != n3)
+            return 83;
+        if (buf[2] != 555)
+            return 84; /* wrote exactly the required count */
+        got = 888;
+        if (graph_lite_cursor_next(cur, &got) != GRAPH_LITE_ERR_END || got != 888)
+            return 85;
+        /* An exhausted cursor drains to an empty, successful result. */
+        need = 99;
+        if (graph_lite_cursor_drain(cur, 0, 0, &need) != GRAPH_LITE_OK || need != 0)
+            return 86;
+        graph_lite_cursor_destroy(cur);
+        cur = 0;
+
+        /* Snapshot independence: mutation after open is invisible to the cursor,
+           and a second cursor opened afterwards sees the new state. */
+        if (graph_lite_cursor_open(cg, GRAPH_LITE_CURSOR_NODES, 0, &cur) != GRAPH_LITE_OK)
+            return 87;
+        if (graph_lite_remove_node(cg, n2) != GRAPH_LITE_OK)
+            return 88;
+        if (graph_lite_add_node(cg, 1, &got) != GRAPH_LITE_OK)
+            return 89;
+        if (graph_lite_cursor_open(cg, GRAPH_LITE_CURSOR_NODES, 0, &other) != GRAPH_LITE_OK)
+            return 90;
+        if (graph_lite_cursor_drain(other, buf, 8, &need) != GRAPH_LITE_OK || need != 3 ||
+            buf[0] != n1 || buf[1] != n3 || buf[2] != got)
+            return 91;
+        graph_lite_cursor_destroy(other);
+        other = 0;
+
+        /* The cursor also outlives the graph it was opened on. */
+        graph_lite_graph_destroy(cg);
+        cg = 0;
+        if (graph_lite_cursor_drain(cur, buf, 8, &need) != GRAPH_LITE_OK || need != 3 ||
+            buf[0] != n1 || buf[1] != n2 || buf[2] != n3)
+            return 92;
+        if (graph_lite_cursor_next(cur, &got) != GRAPH_LITE_ERR_END)
+            return 93;
+        graph_lite_cursor_destroy(cur);
+    }
+
     return 0;
 }

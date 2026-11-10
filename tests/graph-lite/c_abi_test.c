@@ -14,6 +14,15 @@ int graph_lite_c_abi_smoke(void);
 int graph_lite_c_abi_smoke(void) {
     int major = -1, minor = -1, patch = -1;
     const char* text;
+    graph_lite_graph* g = 0;
+    graph_lite_id a = GRAPH_LITE_INVALID_ID;
+    graph_lite_id b = GRAPH_LITE_INVALID_ID;
+    graph_lite_id e = GRAPH_LITE_INVALID_ID;
+    graph_lite_id from = GRAPH_LITE_INVALID_ID;
+    graph_lite_id to = GRAPH_LITE_INVALID_ID;
+    graph_lite_tag tag = 0;
+    graph_lite_id listed[1];
+    size_t count = 99;
 
     graph_lite_version(&major, &minor, &patch);
     if (major != GRAPH_LITE_VERSION_MAJOR)
@@ -35,6 +44,39 @@ int graph_lite_c_abi_smoke(void) {
     text = graph_lite_status_string((graph_lite_status)9999);
     if (text == 0)
         return 5;
+
+    /* The store: create, add, remove, destroy — through the C surface only. */
+    if (graph_lite_graph_create(&g) != GRAPH_LITE_OK || g == 0)
+        return 6;
+    if (graph_lite_add_node(g, 0, &a) != GRAPH_LITE_OK || a == GRAPH_LITE_INVALID_ID)
+        return 7;
+    if (graph_lite_add_node(g, 1, &b) != GRAPH_LITE_OK || b == a)
+        return 8;
+    if (graph_lite_add_edge(g, a, b, 2, &e) != GRAPH_LITE_OK || e == GRAPH_LITE_INVALID_ID)
+        return 9;
+    if (graph_lite_node_count(g) != 2 || graph_lite_edge_count(g) != 1)
+        return 10;
+    if (graph_lite_edge_info(g, e, &from, &to, &tag) != GRAPH_LITE_OK || from != a || to != b ||
+        tag != 2)
+        return 11;
+    if (graph_lite_out_edges(g, a, listed, 1, &count) != GRAPH_LITE_OK || count != 1 ||
+        listed[0] != e)
+        return 12;
+
+    /* Removing a node takes its incident edges with it. */
+    if (graph_lite_remove_node(g, b) != GRAPH_LITE_OK)
+        return 13;
+    if (graph_lite_edge_info(g, e, 0, 0, 0) != GRAPH_LITE_ERR_NOT_FOUND)
+        return 14;
+    if (graph_lite_node_count(g) != 1 || graph_lite_edge_count(g) != 0)
+        return 15;
+    if (graph_lite_out_edges(g, a, 0, 0, &count) != GRAPH_LITE_OK || count != 0)
+        return 16;
+    if (graph_lite_remove_node(g, b) != GRAPH_LITE_ERR_NOT_FOUND)
+        return 17;
+
+    graph_lite_graph_destroy(g);
+    graph_lite_graph_destroy(0);
 
     return 0;
 }

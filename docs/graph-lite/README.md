@@ -9,10 +9,10 @@ Ruby, JavaScript, Python, Rust, Go — and C++ callers get a header-only ergonom
 layer over the same entry points. The implementation language is C++; the contract is
 not, because C++ has no stable ABI across compilers or standard library versions.
 
-> **Status: pre-implementation (v0.0.1).** The header currently exposes version
-> information only. The model, storage, traversal and persistence described below
-> are the design being built — not shipped behaviour. Design docs date from
-> 2026-08.
+> **Status: work in progress (v0.0.1).** The header exposes the id-stable
+> node/edge model and typed properties as an in-memory store. Traversal, CSR
+> storage and persistence described below are the design being built — not shipped
+> behaviour. Design docs date from 2026-08.
 
 ## Why it exists
 

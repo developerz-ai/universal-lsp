@@ -22,6 +22,7 @@ set(GRAPH_LITE_VERSION 0.0.1)
 # ergonomics over it and exports nothing. Sources may be C++ internally — the ABI
 # is what is constrained, not the implementation language.
 add_library(graph-lite
+    src/model.cpp
     src/version.cpp)
 add_library(graph-lite::graph-lite ALIAS graph-lite)
 

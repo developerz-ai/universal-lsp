@@ -1,6 +1,8 @@
 # Data model
 
-> Design, not shipped behaviour. v0.0.1 exposes version information only.
+> **Shipped (in-memory):** ids, tags, nodes, edges and properties as described
+> here, through the C ABI in `graph-lite.h`. Still design: traversal, CSR storage,
+> persistence.
 
 ## Nodes
 
@@ -9,7 +11,7 @@ A node is an id, a type tag, and a property map.
 | Field | Notes |
 |---|---|
 | id | Stable for the lifetime of the store, including across persistence. Callers hold ids; the library never reuses one after a delete. |
-| type | An opaque tag the caller defines. Compared, never interpreted. |
+| type | An opaque `uint64_t` tag the caller defines. Compared by equality, never interpreted. 0 is an ordinary tag. |
 | properties | Arbitrary key/value pairs. |
 
 Ids being stable across a save/load cycle is a **one-way door**: callers will
@@ -20,15 +22,28 @@ Ids cross the C boundary, so their width is ABI. Pick a fixed-width integer type
 and never change it — a binding that read 64 bits and now reads 32 does not fail
 to compile, it reads garbage.
 
+**Decided:**
+
+- Ids are `uint64_t`. 0 is never a valid id (`GRAPH_LITE_INVALID_ID`); a lookup of
+  0 is NOT_FOUND.
+- Node ids and edge ids are separate spaces, each issued from its own counter that
+  starts at 1, only goes up, and never reuses an id after removal.
+- Ids are plain identities with no meaning in their bits, so a later save/load can
+  restore them verbatim together with the two counters. No file layout is chosen
+  here — see [persistence.md](persistence.md).
+
 ## Edges
 
 An edge is directed, typed, and carries properties of its own.
 
 | Field | Notes |
 |---|---|
-| from, to | Node ids. An edge to a deleted node must never be readable. |
+| from, to | Node ids. An edge to a deleted node must never be readable: removing a node removes every incident edge (in both directions) and their properties. |
 | type | An opaque tag, same rules as node types. |
 | properties | Arbitrary key/value pairs. |
+
+Self-loops and parallel edges are allowed; a self-loop is listed once as outgoing
+and once as incoming. Edge ids ascend within each node's lists.
 
 Directed with first-class reverse traversal: for the workloads this library
 targets, "what points at this node" is asked as often as "what does this node
@@ -44,7 +59,9 @@ understands a type, it has an opinion about someone's domain.
 
 ## Properties
 
-Small, typed values (integers, floats, booleans, strings) keyed by short names.
+Small, typed values — `int64`, `double`, `bool`, string — keyed by short names
+(any non-NULL string, the empty one included). Setting an existing key overwrites
+it and may change its value kind; reading with the wrong kind is an error.
 The property store is separate from the adjacency arrays: traversal must not pull
 property bytes into cache lines it does not read.
 

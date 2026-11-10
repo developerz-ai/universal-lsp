@@ -26,3 +26,7 @@ ulsp_add_test(graph_lite_model_test
 ulsp_add_test(graph_lite_model_properties_test
     SOURCES model_properties_test.cpp
     LINK    graph-lite::graph-lite)
+
+ulsp_add_test(graph_lite_traversal_test
+    SOURCES traversal_test.cpp
+    LINK    graph-lite::graph-lite)

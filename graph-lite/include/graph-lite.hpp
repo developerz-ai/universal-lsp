@@ -13,6 +13,7 @@
 
 #include "graph-lite.h"
 
+#include <memory>
 #include <stdexcept>
 #include <string>
 #include <utility>
@@ -182,6 +183,38 @@ public:
 
     std::vector<graph_lite_id> in_neighbors(graph_lite_id id) const {
         return neighbors_(graph_lite_node_in_degree, graph_lite_node_in_neighbors, id);
+    }
+
+    struct Walk {
+        std::vector<graph_lite_id> ids;
+        bool partial;
+    };
+
+    Walk traverse(graph_lite_id start, graph_lite_walk_order order,
+                  graph_lite_walk_direction direction, uint64_t max_depth = UINT64_MAX,
+                  uint64_t max_results = UINT64_MAX, bool filter_node_tag = false,
+                  graph_lite_tag node_tag = 0, bool filter_edge_tag = false,
+                  graph_lite_tag edge_tag = 0) const {
+        graph_lite_traversal* traversal = nullptr;
+        const graph_lite_status status = graph_lite_traversal_open(
+            handle_, start, order, direction, filter_node_tag, node_tag, filter_edge_tag, edge_tag,
+            max_depth, max_results, &traversal);
+        check(status);
+
+        struct TraversalDeleter {
+            void operator()(graph_lite_traversal* value) const {
+                graph_lite_traversal_destroy(value);
+            }
+        };
+
+        std::unique_ptr<graph_lite_traversal, TraversalDeleter> owner(traversal);
+        Walk result{{}, false};
+        for (graph_lite_id id = 0; graph_lite_traversal_next(owner.get(), &id) == GRAPH_LITE_OK;)
+            result.ids.push_back(id);
+        int partial = 0;
+        check(graph_lite_traversal_partial(owner.get(), &partial));
+        result.partial = partial != 0;
+        return result;
     }
 
 private:

@@ -3,7 +3,8 @@
 > **Shipped in v0.0.1-wip (in-memory, through the C ABI in `graph-lite.h`):**
 > stable ids, type tags, directed edges with first-class reverse adjacency, and
 > properties as described here. The property store stays separate from the
-> adjacency arrays (see Properties below). Still design: traversal, persistence.
+> adjacency arrays (see Properties below). Native traversal is shipped; persistence
+> remains design.
 
 ## Nodes
 

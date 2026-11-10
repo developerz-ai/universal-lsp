@@ -34,8 +34,8 @@
  *   properties ships behind this ABI — create/destroy, add/remove, counts,
  *   adjacency listing and property storage — with stable, never-reused ids and
  *   both adjacency directions materialized contiguously (see benchmark.md).
- *   Traversal, CSR-backed storage and the persistence format are still design —
- *   see docs/graph-lite/README.md.
+ *   Native traversal ships over the contiguous forward and reverse adjacency.
+ *   Persistence remains design — see docs/graph-lite/README.md.
  *
  * Licensed under the MIT License. See graph-lite/LICENSE — deliberately more
  * permissive than the engine that consumes it.
@@ -336,6 +336,55 @@ graph_lite_status graph_lite_cursor_drain(graph_lite_cursor* c, graph_lite_id* b
 
 /* Releases a cursor. NULL is accepted and ignored. */
 void graph_lite_cursor_destroy(graph_lite_cursor* c);
+
+/* ------------------------------------------------------------------------ *
+ * Traversal
+ *
+ * A traversal snapshots its result at open, then yields node ids through an
+ * opaque handle. It is independent of later graph mutation and may outlive the
+ * graph. `max_depth` and `max_results` use UINT64_MAX for no limit.
+ *
+ * The start node is yielded independently of the node-tag filter at depth 0.
+ * For each later candidate, the edge tag and then its destination node tag are
+ * checked before it enters the worklist. A nonzero filter flag requires an
+ * exact tag match; zero ignores that tag. A node is yielded at most once.
+ * ------------------------------------------------------------------------ */
+
+typedef struct graph_lite_traversal graph_lite_traversal;
+
+typedef enum graph_lite_walk_order {
+    GRAPH_LITE_WALK_BREADTH_FIRST = 0,
+    GRAPH_LITE_WALK_DEPTH_FIRST = 1,
+    GRAPH_LITE_WALK_ORDER_FORCE_INT = 0x7fffffff
+} graph_lite_walk_order;
+
+typedef enum graph_lite_walk_direction {
+    GRAPH_LITE_WALK_FORWARD = 0,
+    GRAPH_LITE_WALK_REVERSE = 1,
+    GRAPH_LITE_WALK_DIRECTION_FORCE_INT = 0x7fffffff
+} graph_lite_walk_direction;
+
+/* Opens and computes a native walk. NULL graph/out, unknown order/direction,
+ * or a missing start node -> INVALID_ARGUMENT or NOT_FOUND. Allocation failure
+ * -> OUT_OF_MEMORY. *out is set on success only. */
+graph_lite_status graph_lite_traversal_open(const graph_lite_graph* graph, graph_lite_id start,
+                                            graph_lite_walk_order order,
+                                            graph_lite_walk_direction direction,
+                                            int filter_node_tag, graph_lite_tag node_tag,
+                                            int filter_edge_tag, graph_lite_tag edge_tag,
+                                            uint64_t max_depth, uint64_t max_results,
+                                            graph_lite_traversal** out);
+
+/* Writes the next admitted node id; exhaustion returns GRAPH_LITE_ERR_END. */
+graph_lite_status graph_lite_traversal_next(graph_lite_traversal* traversal, graph_lite_id* out_id);
+
+/* Writes 1 when a depth or result limit prevented an otherwise admissible
+ * candidate, otherwise 0. NULL argument -> INVALID_ARGUMENT. */
+graph_lite_status graph_lite_traversal_partial(const graph_lite_traversal* traversal,
+                                               int* out_partial);
+
+/* Releases a traversal. NULL is accepted and ignored. */
+void graph_lite_traversal_destroy(graph_lite_traversal* traversal);
 
 #ifdef __cplusplus
 } /* extern "C" */

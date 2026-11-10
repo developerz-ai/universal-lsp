@@ -1,12 +1,14 @@
 # Traversal
 
-> Design, not shipped behaviour.
+> Shipped in v0.0.1-wip through the C ABI in `graph-lite.h` and the C++
+> `graph_lite::Graph::traverse` convenience method.
 
 ## The API is programmatic, not declarative
 
-v1 exposes C++ traversal calls: breadth-first, depth-first, bounded and unbounded
-depth, reverse-edge walks, shortest-or-any path between two nodes, and type
-filters applied *during* the walk rather than after it.
+The library exposes native breadth-first and depth-first walks over forward or
+reverse adjacency. A traversal is an opaque C handle; opening it snapshots node
+ids, then `next` yields them until `GRAPH_LITE_ERR_END`. The C++ wrapper collects
+those ids with the same ABI calls. Path finding is not part of this operation.
 
 No Cypher, no Datalog, no SQL. A query language is a large, permanent surface, and
 which queries actually matter is exactly what the first year of real usage
@@ -25,17 +27,24 @@ This is a **rejected alternative, not a deferred one**. The core traversal engin
 must not be backed by a relational store, however convenient that would be for the
 persistence layer.
 
-## Filters run inside the walk
+## Order, direction, and filters run inside the walk
 
-Filtering by node type or edge type after collecting a frontier means paying for
-nodes the caller never wanted — and on a highly-connected graph the frontier is
-where all the cost is. Filters are arguments to the traversal, applied as edges
-are considered.
+`GRAPH_LITE_WALK_BREADTH_FIRST` visits each depth in adjacency order.
+`GRAPH_LITE_WALK_DEPTH_FIRST` uses a stack, so the latest admitted adjacent node
+is visited first. `FORWARD` follows outgoing edges; `REVERSE` follows incoming
+edges. The start node is always admitted at depth zero, even when a node-tag
+filter would exclude it.
+
+Filters are primitive traversal arguments, applied as every edge is considered:
+the edge tag and then the destination node tag must match before that destination
+enters the queue or stack. A rejected edge never expands the frontier. Nodes are
+marked discovered at admission, including with self-edges, parallel edges, and
+cycles, so every admitted node is yielded at most once.
 
 ## Bounded by default in caller code
 
-Unbounded traversal on a dense graph is unbounded work. The library provides depth
-and result limits; callers on a latency budget are expected to use them. A
-traversal that cannot finish inside a budget must return a partial result the
-caller can recognise as partial — never a truncated one it cannot distinguish from
-a complete answer.
+Unbounded traversal on a dense graph is unbounded work. `UINT64_MAX` means no
+depth or result limit; all other values are inclusive limits. Callers on a latency
+budget are expected to set both. `graph_lite_traversal_partial` reports true only
+when a depth or result limit prevented an otherwise admissible candidate. Filters,
+cycles, and exhausted adjacency do not make a complete traversal partial.

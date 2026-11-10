@@ -11,8 +11,9 @@ not, because C++ has no stable ABI across compilers or standard library versions
 
 > **Status: model shipped (v0.0.1-wip).** The typed node/edge store ships behind
 > the C ABI: stable, never-reused ids, contiguous forward and reverse adjacency
-> (see [benchmark.md](benchmark.md)), and typed properties. Traversal algorithms
-> and persistence described below remain design. Design docs date from 2026-08.
+> (see [benchmark.md](benchmark.md)), typed properties, and native BFS/DFS
+> traversal. Persistence described below remains design. Design docs date from
+> 2026-08.
 
 ## Why it exists
 
@@ -44,23 +45,21 @@ Full detail: [data-model.md](data-model.md).
 ## Operations
 
 - Add and remove nodes and edges.
-- Traverse breadth-first or depth-first, bounded or unbounded depth.
-- Traverse **reverse edges** — the "what points at this" direction, which is the
-  expensive one to bolt on later and cheap to design in now.
-- Find the shortest or any path between two nodes.
-- Filter by node type and edge type during traversal, not after it.
+- Traverse breadth-first or depth-first in forward or reverse direction.
+- Bound depth and result counts, with explicit partial-result status.
+- Filter node and edge tags during traversal, before a candidate enters its
+  worklist.
 
-No query language in v1. A programmatic C++ traversal API first; a declarative
-layer only once real usage says which queries actually matter, rather than
-speculatively. Detail: [traversal.md](traversal.md).
+No query language in v1. The programmatic C ABI and C++ wrapper come first; a
+declarative layer only once real usage says which queries actually matter. Concrete
+walk semantics: [traversal.md](traversal.md).
 
 ## Storage
 
-A CSR-style (compressed sparse row) adjacency structure: flat, contiguous arrays
-for node and edge data. Chosen for two reasons that reinforce each other —
-contiguous arrays are cache-friendly to walk, and they map almost directly onto a
-persisted file, so a reload is close to a read or an `mmap` rather than a parse
-and rebuild. Detail: [persistence.md](persistence.md).
+A dense-record layout with per-node contiguous forward and reverse runs in flat
+pools. It is cache-friendly to walk and leaves persistence free to choose its own
+format rather than promising an implementation detail as an ABI. Detail:
+[persistence.md](persistence.md).
 
 ## Concurrency
 

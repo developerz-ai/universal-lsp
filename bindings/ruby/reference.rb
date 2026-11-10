@@ -13,7 +13,7 @@ module GraphLite
   OK = 0
   INVALID_ARGUMENT = 1
   BUFFER_TOO_SMALL = 7
-  END = 8
+  CURSOR_END = 8
   NODE = 0
   CURSOR_EDGES = 1
 
@@ -40,6 +40,10 @@ def id_value(pointer)
   pointer.read_uint64
 end
 
+def size_value(pointer)
+  pointer.read_ulong
+end
+
 graph_out = FFI::MemoryPointer.new(:pointer)
 expect(GraphLite.graph_lite_graph_create(graph_out), GraphLite::OK, "create")
 graph = graph_out.read_pointer
@@ -58,14 +62,14 @@ edge = id_value(edge_out)
 expect(GraphLite.graph_lite_set_string(graph, GraphLite::NODE, first, "label", "alpha"), GraphLite::OK, "set property")
 length_out = FFI::MemoryPointer.new(:size_t)
 expect(GraphLite.graph_lite_get_string(graph, GraphLite::NODE, first, "label", nil, 0, length_out), GraphLite::BUFFER_TOO_SMALL, "property size query")
-raise "property length was not reported" unless length_out.read_size_t == 5
+raise "property length was not reported" unless size_value(length_out) == 5
 property = FFI::MemoryPointer.new(:char, 6)
 expect(GraphLite.graph_lite_get_string(graph, GraphLite::NODE, first, "label", property, 6, length_out), GraphLite::OK, "get property")
 raise "property value mismatch" unless property.read_string == "alpha"
 
 edge_count = FFI::MemoryPointer.new(:size_t)
 expect(GraphLite.graph_lite_out_edges(graph, first, nil, 0, edge_count), GraphLite::BUFFER_TOO_SMALL, "edge size query")
-raise "edge count was not reported" unless edge_count.read_size_t == 1
+raise "edge count was not reported" unless size_value(edge_count) == 1
 
 cursor_out = FFI::MemoryPointer.new(:pointer)
 expect(GraphLite.graph_lite_cursor_open(graph, GraphLite::CURSOR_EDGES, 0, cursor_out), GraphLite::OK, "open cursor")
@@ -73,7 +77,7 @@ cursor = cursor_out.read_pointer
 cursor_id = FFI::MemoryPointer.new(:uint64)
 expect(GraphLite.graph_lite_cursor_next(cursor, cursor_id), GraphLite::OK, "cursor next")
 raise "cursor yielded the wrong edge" unless id_value(cursor_id) == edge
-expect(GraphLite.graph_lite_cursor_next(cursor, cursor_id), GraphLite::END, "cursor exhaustion")
+expect(GraphLite.graph_lite_cursor_next(cursor, cursor_id), GraphLite::CURSOR_END, "cursor exhaustion")
 GraphLite.graph_lite_cursor_destroy(cursor)
 
 raise "unknown status was not readable" unless GraphLite.graph_lite_status_string(12_345) == "unknown status"

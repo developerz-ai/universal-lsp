@@ -24,7 +24,7 @@ const { symbols } = dlopen(library, {
     returns: FFIType.i32,
   },
   graph_lite_set_string: {
-    args: [FFIType.ptr, FFIType.i32, FFIType.u64, FFIType.cstring, FFIType.cstring],
+    args: [FFIType.ptr, FFIType.i32, FFIType.u64, FFIType.ptr, FFIType.ptr],
     returns: FFIType.i32,
   },
   graph_lite_get_string: {
@@ -32,7 +32,7 @@ const { symbols } = dlopen(library, {
       FFIType.ptr,
       FFIType.i32,
       FFIType.u64,
-      FFIType.cstring,
+      FFIType.ptr,
       FFIType.ptr,
       FFIType.usize,
       FFIType.ptr,
@@ -66,9 +66,13 @@ function sizeSlot(): BigUint64Array {
   return new BigUint64Array(1);
 }
 
+function cString(value: string): Uint8Array {
+  return new TextEncoder().encode(`${value}\0`);
+}
+
 const graphSlot = pointerSlot();
 expect(symbols.graph_lite_graph_create(ptr(graphSlot)), OK, 'create');
-let graph = graphSlot[0];
+let graph = Number(graphSlot[0]);
 
 const firstSlot = idSlot();
 const secondSlot = idSlot();
@@ -81,10 +85,12 @@ const edgeSlot = idSlot();
 expect(symbols.graph_lite_add_edge(graph, first, second, 30n, ptr(edgeSlot)), OK, 'add edge');
 const edge = edgeSlot[0];
 
-expect(symbols.graph_lite_set_string(graph, NODE, first, 'label', 'alpha'), OK, 'set property');
+const label = cString('label');
+const alpha = cString('alpha');
+expect(symbols.graph_lite_set_string(graph, NODE, first, ptr(label), ptr(alpha)), OK, 'set property');
 const lengthSlot = sizeSlot();
 expect(
-  symbols.graph_lite_get_string(graph, NODE, first, 'label', null, 0, ptr(lengthSlot)),
+  symbols.graph_lite_get_string(graph, NODE, first, ptr(label), null, 0, ptr(lengthSlot)),
   BUFFER_TOO_SMALL,
   'property size query',
 );
@@ -95,7 +101,7 @@ expect(
     graph,
     NODE,
     first,
-    'label',
+    ptr(label),
     ptr(property),
     property.length,
     ptr(lengthSlot),
@@ -116,17 +122,17 @@ if (edgeCount[0] !== 1n) throw new Error('edge count was not reported');
 
 const cursorSlot = pointerSlot();
 expect(symbols.graph_lite_cursor_open(graph, CURSOR_EDGES, 0n, ptr(cursorSlot)), OK, 'open cursor');
-const cursor = cursorSlot[0];
+const cursor = Number(cursorSlot[0]);
 const cursorId = idSlot();
 expect(symbols.graph_lite_cursor_next(cursor, ptr(cursorId)), OK, 'cursor next');
 if (cursorId[0] !== edge) throw new Error('cursor yielded the wrong edge');
 expect(symbols.graph_lite_cursor_next(cursor, ptr(cursorId)), END, 'cursor exhaustion');
 symbols.graph_lite_cursor_destroy(cursor);
 
-if (symbols.graph_lite_status_string(12_345) !== 'unknown status')
+if (String(symbols.graph_lite_status_string(12_345)) !== 'unknown status')
   throw new Error('unknown status was not readable');
 symbols.graph_lite_graph_destroy(graph);
-graph = 0n;
+graph = null;
 expect(
   symbols.graph_lite_add_node(graph, 40n, ptr(firstSlot)),
   INVALID_ARGUMENT,

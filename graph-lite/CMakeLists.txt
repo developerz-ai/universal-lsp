@@ -26,7 +26,8 @@ add_library(graph-lite SHARED
     src/store.cpp
     src/graph.cpp
     src/model.cpp
-    src/cursor.cpp)
+    src/cursor.cpp
+    src/traversal.cpp)
 add_library(graph-lite::graph-lite ALIAS graph-lite)
 
 target_include_directories(graph-lite PUBLIC

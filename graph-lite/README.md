@@ -10,8 +10,9 @@ on top; nobody else has to care that the implementation is C++.
 
 > **v0.0.1 — work in progress.** The node/edge model ships behind the C ABI as an
 > in-memory store: contiguous forward and reverse adjacency, stable ids that are
-> never reused, tags and typed properties. BFS/DFS/path traversal and persistence
-> remain design.
+> never reused, tags and typed properties. Native BFS/DFS traversal ships with
+> forward/reverse directions, tag filters, limits, and partial-result status.
+> Persistence and path finding remain design.
 
 ## Two headers, one contract
 
@@ -100,14 +101,13 @@ enforced by a lint rule rather than left to review.
 
 ## What it does
 
-Add and remove nodes and edges. Walk breadth-first or depth-first, bounded or
-unbounded. Walk **reverse edges** — the "what points at this" direction — as a
-first-class operation. Find the shortest or any path between two ids. Filter by
-node type and edge type *during* the walk, not after it.
+Add and remove nodes and edges. Walk breadth-first or depth-first, forward or
+reverse, with bounded or `UINT64_MAX`-unbounded depth and results. Filter node and
+edge tags *during* the walk, before candidates enter the worklist; inspect explicit
+partial-result status when a limit stopped an otherwise admissible candidate.
 
-Storage is CSR-style: flat contiguous arrays, cache-friendly to traverse, and
-close enough to the persisted layout that a reload is nearly a read rather than a
-parse-and-rebuild.
+Storage is dense records with per-node contiguous runs in flat forward and reverse
+pools, cache-friendly to traverse without making persistence layout a promise.
 
 ## What it deliberately is not
 

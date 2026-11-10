@@ -1,7 +1,7 @@
 # graph-lite
 
 A small, fast, dependency-free, embeddable property-graph library. Typed nodes,
-typed directed edges, arbitrary properties on both. One public header, one static
+typed directed edges, arbitrary properties on both. One public header, one shared
 library, no server, no query language, no runtime dependencies.
 
 **The public surface is a C ABI**, so anything with an FFI can embed it — C, C++,
@@ -34,6 +34,10 @@ cmake --build build
 
 Or vendor the directory and `add_subdirectory(graph-lite)` — it configures both
 ways, and the standalone path is verified on every change.
+
+The resulting shared artifact is the C ABI for foreign runtimes. Runnable Ruby,
+Bun, and Python ABI probes live in [`../bindings/`](../bindings/); they are
+reference examples, not supported packages or wrapper libraries.
 
 ## Call it
 
@@ -68,26 +72,6 @@ graph_lite_graph_destroy(g);
 
 const auto v = graph_lite::version();
 graph_lite::check(some_call());   // throws graph_lite::Error, which carries the code
-```
-
-```ruby
-# Ruby, via FFI — no build step beyond the shared library
-require "ffi"
-
-module GraphLite
-  extend FFI::Library
-  ffi_lib "graph-lite"
-  attach_function :graph_lite_version_string, [], :string
-end
-```
-
-```js
-// JavaScript — Bun's FFI; Node uses N-API or koffi the same way
-import { dlopen, FFIType } from "bun:ffi";
-
-const { symbols } = dlopen("libgraph-lite.so", {
-  graph_lite_version_string: { args: [], returns: FFIType.cstring },
-});
 ```
 
 Every one of those binds the same entry points. That is the point of the C ABI:

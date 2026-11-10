@@ -38,9 +38,11 @@ symbol relationships across large codebases, under interactive latency — but
 graph-lite's API is kept free of any of that vocabulary, and is
 [mechanically prevented from learning it](docs/architecture/graph-lite-boundary.md).
 
-> **Status: pre-implementation.** The repository, gates, docs and plan are in
-> place; build phase 1 (graph-lite core) is the current work. Nothing here ships
-> yet. Scope lives in [`docs/spec.md`](docs/spec.md); progress lives in the
+> **Status: build phase 1 underway.** graph-lite 0.1.0 now ships — the in-memory
+> node/edge model, storage and traversal, as a C ABI with header-only C++
+> ergonomics. The daemon, engine and analysis, and graph-lite's properties and
+> persistence, remain phase-1 work. Scope lives in
+> [`docs/spec.md`](docs/spec.md); progress lives in the
 > [milestones](https://github.com/developerz-ai/universal-lsp/milestones).
 
 ## Why

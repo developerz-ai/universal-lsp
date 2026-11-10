@@ -8,7 +8,7 @@
 cmake_minimum_required(VERSION 3.24)
 
 if(CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR)
-    project(graph-lite VERSION 0.0.1 DESCRIPTION "Embeddable property-graph library" LANGUAGES CXX)
+    project(graph-lite VERSION 0.1.0 DESCRIPTION "Embeddable property-graph library" LANGUAGES CXX)
     set(CMAKE_CXX_STANDARD 20)
     set(CMAKE_CXX_STANDARD_REQUIRED ON)
     add_library(ulsp_warnings INTERFACE)
@@ -16,13 +16,15 @@ if(CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR)
 endif()
 
 # Versioned independently of the LSP engine, per docs/spec.md §2.
-set(GRAPH_LITE_VERSION 0.0.1)
+set(GRAPH_LITE_VERSION 0.1.0)
 
 # The public surface is C (graph-lite.h); graph-lite.hpp is header-only
 # ergonomics over it and exports nothing. Sources may be C++ internally — the ABI
 # is what is constrained, not the implementation language.
 add_library(graph-lite
-    src/version.cpp)
+    src/version.cpp
+    src/store.cpp
+    src/cursor.cpp)
 add_library(graph-lite::graph-lite ALIAS graph-lite)
 
 target_include_directories(graph-lite PUBLIC

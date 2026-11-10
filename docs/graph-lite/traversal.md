@@ -1,12 +1,22 @@
 # Traversal
 
-> Design, not shipped behaviour.
+> Shipped in v0.1.0 as the cursor-based C ABI — no callbacks into the caller's
+> runtime: breadth-first by level or depth-first preorder, either direction,
+> type filters, depth and result bounds, a truncation flag, and shortest path
+> with required-size reporting. The parameterised C++ traversal calls remain
+> design.
 
 ## The API is programmatic, not declarative
 
-v1 exposes C++ traversal calls: breadth-first, depth-first, bounded and unbounded
-depth, reverse-edge walks, shortest-or-any path between two nodes, and type
-filters applied *during* the walk rather than after it.
+Shipped surface, v0.1.0: `graph_lite_cursor_open` walks eagerly and returns a
+snapshot cursor — later mutation cannot change a walk already taken — and
+`graph_lite_cursor_next` yields its nodes in order. Breadth-first by level or
+depth-first preorder, outgoing or incoming direction, bounded or unbounded
+depth, edge and node type filters applied *during* the walk rather than after
+it, a truncation flag for bounded walks, and `graph_lite_shortest_path`
+between two nodes with required-size reporting. No callbacks into the caller's
+runtime anywhere in that surface. The parameterised C++ traversal-call shape
+remains design.
 
 No Cypher, no Datalog, no SQL. A query language is a large, permanent surface, and
 which queries actually matter is exactly what the first year of real usage
@@ -35,7 +45,9 @@ are considered.
 ## Bounded by default in caller code
 
 Unbounded traversal on a dense graph is unbounded work. The library provides depth
-and result limits; callers on a latency budget are expected to use them. A
-traversal that cannot finish inside a budget must return a partial result the
-caller can recognise as partial — never a truncated one it cannot distinguish from
-a complete answer.
+and result limits (0 = unbounded); callers on a latency budget are expected to
+use them. A traversal that cannot finish inside a budget must return a partial
+result the caller can recognise as partial — never a truncated one it cannot
+distinguish from a complete answer. Shipped as the cursor's truncation flag
+(`graph_lite_cursor_truncated`): 1 only when a bound provably cut reachable
+nodes out of the walk.

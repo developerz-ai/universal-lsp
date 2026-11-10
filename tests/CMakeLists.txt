@@ -11,7 +11,10 @@ function(ulsp_add_test name)
     cmake_parse_arguments(T "" "" "SOURCES;LINK" ${ARGN})
     add_executable(${name} ${T_SOURCES})
     target_link_libraries(${name} PRIVATE ${T_LINK} GTest::gtest_main ulsp_warnings ulsp_sanitizers)
+    # Register as <target>.<Suite>.<Test>: without the target prefix, `ctest -R
+    # graph_lite` and the change detector's `^(graph_lite_)` filter match nothing.
     gtest_discover_tests(${name}
+        TEST_PREFIX "${name}."
         PROPERTIES LABELS "unit"
         DISCOVERY_TIMEOUT 30)
 endfunction()

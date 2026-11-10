@@ -1,6 +1,9 @@
 # Data model
 
-> Design, not shipped behaviour. v0.0.1 exposes version information only.
+> Shipped C-ABI behaviour as of v0.1.0: the node/edge model, fixed-width ids
+> that are never reused (`GRAPH_LITE_NODE_ID_NONE` = 0 reserved), type tags, and
+> node removal cascading to its incident edges. Design-only still: node/edge
+> properties, and persistence.
 
 ## Nodes
 
@@ -43,6 +46,8 @@ is wrong. This is what keeps the model generic — the moment the library
 understands a type, it has an opinion about someone's domain.
 
 ## Properties
+
+> Design-only in v0.1.0 — not part of the shipped C ABI.
 
 Small, typed values (integers, floats, booleans, strings) keyed by short names.
 The property store is separate from the adjacency arrays: traversal must not pull

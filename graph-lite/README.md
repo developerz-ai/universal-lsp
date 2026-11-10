@@ -8,14 +8,18 @@ library, no server, no query language, no runtime dependencies.
 Ruby, JavaScript, Python, Rust, Go. C++ callers get a header-only ergonomics layer
 on top; nobody else has to care that the implementation is C++.
 
-> **v0.0.1 — pre-implementation.** The header exposes version information only.
-> The model, storage, traversal and persistence are designed and being built.
+> **v0.1.0 — model, storage and traversal shipped.** The C surface covers the
+> store (typed nodes and edges, add/remove with a removal cascade, counts,
+> type and endpoint accessors), the snapshot cursor (breadth-first by level or
+> depth-first preorder, either direction, type filters, depth and result
+> bounds, truncation flag) and shortest path with required-size reporting.
+> Properties and persistence remain designed, not shipped.
 
 ## Two headers, one contract
 
 | Header | For | Is |
 |---|---|---|
-| `graph-lite.h` | C, and every FFI | **The contract.** C linkage, opaque handles, integer status codes, caller-owned buffers. |
+| `graph-lite.h` | C, and every FFI | **The contract.** C linkage, opaque handles, fixed-width never-reused ids, integer status codes, caller-owned buffers with required-size reporting, no callbacks into the caller's runtime. |
 | `graph-lite.hpp` | C++ | Header-only ergonomics over the C header — RAII, real types, exceptions. Exports no entry point of its own. |
 
 The direction is deliberate: C++ has no stable ABI across compilers or standard
@@ -43,6 +47,25 @@ int major, minor, patch;
 graph_lite_version(&major, &minor, &patch);
 /* compare against GRAPH_LITE_VERSION_* to catch a header/binary mismatch at
    startup rather than as a corrupt read much later */
+
+graph_lite_store *store = NULL;
+graph_lite_store_create(&store);          /* GRAPH_LITE_OK, or a status code */
+
+graph_lite_node_id a, b, edge;
+graph_lite_store_add_node(store, 1, &a);  /* ids assigned from 1, never reused */
+graph_lite_store_add_node(store, 1, &b);
+graph_lite_store_add_edge(store, a, b, 7, &edge);
+
+graph_lite_cursor *walk = NULL;
+graph_lite_cursor_open(store, a, GRAPH_LITE_BREADTH_FIRST, GRAPH_LITE_OUTGOING,
+                       /*max_depth*/ 0, /*max_results*/ 0,
+                       NULL, 0, NULL, 0, &walk);  /* NULL + 0 filters: any type */
+graph_lite_node_id hit;
+while (graph_lite_cursor_next(walk, &hit) == GRAPH_LITE_OK) {
+    /* visit hit; GRAPH_LITE_DONE ends the walk */
+}
+graph_lite_cursor_free(walk);
+graph_lite_store_destroy(store);
 ```
 
 ```cpp
@@ -91,6 +114,9 @@ version of the header than the linked library knows.
 - **Type** — an opaque tag *you* define and name. The library attaches no meaning
   to any of them, holds no registry, and reserves no name.
 
+Ids and type tags are in the 0.1.0 ABI; properties are designed but not yet
+shipped.
+
 Nothing about your domain appears in this library. That is the design, and it is
 enforced by a lint rule rather than left to review.
 
@@ -98,12 +124,15 @@ enforced by a lint rule rather than left to review.
 
 Add and remove nodes and edges. Walk breadth-first or depth-first, bounded or
 unbounded. Walk **reverse edges** — the "what points at this" direction — as a
-first-class operation. Find the shortest or any path between two ids. Filter by
-node type and edge type *during* the walk, not after it.
+first-class operation. Find the shortest path between two ids, reporting the
+buffer size it needs first. Filter by node type and edge type *during* the
+walk, not after it.
 
-Storage is CSR-style: flat contiguous arrays, cache-friendly to traverse, and
-close enough to the persisted layout that a reload is nearly a read rather than a
-parse-and-rebuild.
+In memory the store is per-node adjacency vectors plus id->slot maps: insertion
+order preserved, removals cheap, nothing rebuilt. CSR — flat contiguous arrays,
+cache-friendly to traverse, and close enough to the persisted layout that a
+reload is nearly a read rather than a parse-and-rebuild — remains the design
+target for the persisted format.
 
 ## What it deliberately is not
 

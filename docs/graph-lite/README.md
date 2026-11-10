@@ -9,10 +9,11 @@ Ruby, JavaScript, Python, Rust, Go — and C++ callers get a header-only ergonom
 layer over the same entry points. The implementation language is C++; the contract is
 not, because C++ has no stable ABI across compilers or standard library versions.
 
-> **Status: pre-implementation (v0.0.1).** The header currently exposes version
-> information only. The model, storage, traversal and persistence described below
-> are the design being built — not shipped behaviour. Design docs date from
-> 2026-08.
+> **Status: v0.1.0 — model, storage and traversal shipped.** The C surface now
+> covers store, cursor and traversal entry points, with `GRAPH_LITE_DONE` = 8
+> (cursor exhausted; not an error) and `GRAPH_LITE_ERR_UNREACHABLE` = 9 appended
+> to the released status codes 0–7, unchanged. Properties and persistence are
+> designed below, not shipped. Design docs date from 2026-08.
 
 ## Why it exists
 
@@ -47,20 +48,24 @@ Full detail: [data-model.md](data-model.md).
 - Traverse breadth-first or depth-first, bounded or unbounded depth.
 - Traverse **reverse edges** — the "what points at this" direction, which is the
   expensive one to bolt on later and cheap to design in now.
-- Find the shortest or any path between two nodes.
+- Find the shortest path between two nodes, reporting the buffer size it needs.
 - Filter by node type and edge type during traversal, not after it.
 
-No query language in v1. A programmatic C++ traversal API first; a declarative
-layer only once real usage says which queries actually matter, rather than
-speculatively. Detail: [traversal.md](traversal.md).
+No query language in v1. Traversal ships as the programmatic C ABI (below) —
+the parameterised C++ traversal shape stays design, and a declarative layer
+waits for real usage to say which queries actually matter, rather than being
+speculative. Detail: [traversal.md](traversal.md).
 
 ## Storage
 
-A CSR-style (compressed sparse row) adjacency structure: flat, contiguous arrays
-for node and edge data. Chosen for two reasons that reinforce each other —
-contiguous arrays are cache-friendly to walk, and they map almost directly onto a
-persisted file, so a reload is close to a read or an `mmap` rather than a parse
-and rebuild. Detail: [persistence.md](persistence.md).
+Shipped: per-node adjacency vectors plus id→slot hash maps — insertion-ordered,
+mutable, nothing rebuilt on removal. Designed below, not shipped, like
+properties and persistence: a CSR-style (compressed sparse row) adjacency of
+flat, contiguous arrays for node and edge data. CSR remains the design target
+for the persisted format, chosen for two reasons that reinforce each other —
+contiguous arrays are cache-friendly to walk, and they map almost directly onto
+a persisted file, so a reload is close to a read or an `mmap` rather than a
+parse and rebuild. Detail: [persistence.md](persistence.md).
 
 ## Concurrency
 
@@ -85,13 +90,15 @@ disproportionate testing investment relative to the traversal algorithms:
 
 | Header | For | Is |
 |---|---|---|
-| `graph-lite.h` | C, and every FFI | **The contract.** C linkage, opaque handles, integer status codes, caller-owned buffers, additive only. |
+| `graph-lite.h` | C, and every FFI | **The contract.** C linkage, opaque handles, fixed-width never-reused ids, integer status codes, caller-owned buffers, additive only. |
 | `graph-lite.hpp` | C++ | Header-only ergonomics over the C header. Exports no entry point of its own. |
 
 Rules the C surface holds to — no caller-visible type from the implementation
-language, opaque handles rather than published struct layouts, a distinct status
-code per failure a caller must distinguish, explicit buffer ownership, and no
-callback into the caller's runtime on a hot path. Full rationale:
+language, opaque handles rather than published struct layouts, fixed-width ids
+whose width is itself ABI, a distinct status code per failure a caller must
+distinguish (exhaustion is not one: `GRAPH_LITE_DONE`), explicit buffer
+ownership with required-size reporting, and no callback into the caller's
+runtime. Full rationale:
 [`../architecture/decisions/0004-graph-lite-c-abi.md`](../architecture/decisions/0004-graph-lite-c-abi.md).
 
 The claim is tested rather than asserted: `tests/graph-lite/c_abi_test.c` is

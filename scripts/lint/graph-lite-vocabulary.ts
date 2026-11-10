@@ -33,7 +33,7 @@ const SCAN = [
   'graph-lite/include/**/*.{h,hpp}',
   'graph-lite/src/**/*.{cpp,h,hpp}',
   'graph-lite/README.md',
-  'tests/graph-lite/**/*.{cpp,h}',
+  'tests/graph-lite/**/*.{cpp,h,c}',
   'docs/graph-lite/**/*.md',
 ];
 
@@ -80,11 +80,20 @@ export function identifierWords(line: string): string[] {
 
 const singular = (word: string) => (word.endsWith('s') ? word.slice(0, -1) : word);
 
+/**
+ * Own-property lookups only. A plain object literal inherits Object.prototype,
+ * so an unguarded `BANNED_WORDS["constructor"]` returned the inherited function
+ * — truthy for every token — and the guard fired on generic words this file
+ * deliberately leaves out. `Object.hasOwn` on BOTH lookups (word and singular).
+ */
+const lookupBanned = (word: string): string | undefined =>
+  Object.hasOwn(BANNED_WORDS, word) ? BANNED_WORDS[word] : undefined;
+
 function violations(line: string): Array<[string, string]> {
   const hits: Array<[string, string]> = [];
 
   for (const word of identifierWords(line)) {
-    const why = BANNED_WORDS[word] ?? BANNED_WORDS[singular(word)];
+    const why = lookupBanned(word) ?? lookupBanned(singular(word));
     if (why) hits.push([word, why]);
   }
 

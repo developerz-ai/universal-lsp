@@ -4,6 +4,7 @@
  * clang-format it found is the major the format gate pins.
  */
 import type { RunResult } from './cmd.ts';
+import { warn } from './log.ts';
 
 /** The major scripts/format.ts formats with. Its output differs between majors. */
 export const CLANG_FORMAT_MAJOR = 18;
@@ -68,7 +69,14 @@ export async function installMissing(missing: Prereq[], sh: Shell): Promise<stri
   if (missing.length === 0 || !(await sh.has('apt-get')) || !(await sh.has('sudo'))) return [];
   if ((await sh.run(['sudo', '-n', 'true'])).code !== 0) return [];
   const pkgs = missing.map((p) => p.apt);
-  await sh.runOrThrow(['sudo', '-n', 'apt-get', 'update', '-qq']);
+  // A refresh that misses one index (a mirror dropping a Packages.xz exits 100) is not
+  // the failure: the lists on disk still resolve these packages. The install below is
+  // the step that must succeed, and it exits setup loudly when it cannot.
+  const update = await sh.run(['sudo', '-n', 'apt-get', 'update', '-qq']);
+  if (update.code !== 0) {
+    const why = update.stderr.trim().split('\n').at(-1) ?? '';
+    warn(`apt-get update exited ${update.code} (${why}); installing from the lists on disk`);
+  }
   await sh.runOrThrow([
     'sudo',
     '-n',

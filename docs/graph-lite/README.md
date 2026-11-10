@@ -12,7 +12,8 @@ not, because C++ has no stable ABI across compilers or standard library versions
 > **Status: model shipped (v0.0.1-wip).** The typed node/edge store ships behind
 > the C ABI: stable, never-reused ids, contiguous forward and reverse adjacency
 > (see [benchmark.md](benchmark.md)), typed properties, and native BFS/DFS
-> traversal. Persistence described below remains design. Design docs date from
+> traversal, plus direction-aware filtered any-path and unweighted shortest-path
+> queries. Persistence described below remains design. Design docs date from
 > 2026-08.
 
 ## Why it exists
@@ -49,6 +50,10 @@ Full detail: [data-model.md](data-model.md).
 - Bound depth and result counts, with explicit partial-result status.
 - Filter node and edge tags during traversal, before a candidate enters its
   worklist.
+- Find any admissible path or an unweighted shortest path in either direction,
+  with those same tag filters and caller-owned output buffers.
+- Distinguish an unreachable live endpoint (`GRAPH_LITE_ERR_NO_PATH`) from a
+  successful zero-hop path.
 
 No query language in v1. The programmatic C ABI and C++ wrapper come first; a
 declarative layer only once real usage says which queries actually matter. Concrete

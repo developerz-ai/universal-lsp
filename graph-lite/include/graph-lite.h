@@ -76,6 +76,8 @@ typedef enum graph_lite_status {
     GRAPH_LITE_ERR_BUFFER_TOO_SMALL = 7,
     /* Iteration is exhausted (graph_lite_cursor_next). Not a failure. */
     GRAPH_LITE_ERR_END = 8,
+    /* Both path endpoints exist, but no admissible route connects them. */
+    GRAPH_LITE_ERR_NO_PATH = 9,
 
     /* Forces the enum to int width, which makes the RANGE of the type cover every
      * int a caller could pass. Without it, a value outside the declared
@@ -385,6 +387,39 @@ graph_lite_status graph_lite_traversal_partial(const graph_lite_traversal* trave
 
 /* Releases a traversal. NULL is accepted and ignored. */
 void graph_lite_traversal_destroy(graph_lite_traversal* traversal);
+
+/* ------------------------------------------------------------------------ *
+ * Paths
+ *
+ * Path queries follow either materialized adjacency direction and apply node
+ * and edge tag filters exactly as traversal does: each edge and then its next
+ * node must match before it may enter the search. `start` and `target` must
+ * both name live nodes; either missing endpoint returns NOT_FOUND. A start
+ * equal to target succeeds with that one-node path, regardless of node filter.
+ *
+ * `buffer` holds node ids from start through target. `out_count` is required
+ * and is always set to the required count for a successful path. If capacity
+ * is too small, BUFFER_TOO_SMALL is returned and buffer is untouched; buffer
+ * may be NULL when capacity is zero for the size query. A NULL buffer with
+ * nonzero capacity is INVALID_ARGUMENT. When both endpoints exist but no
+ * route survives the filters, NO_PATH is returned and *out_count is zero.
+ * ------------------------------------------------------------------------ */
+
+/* Returns one admissible path; its hop count is not specified. */
+graph_lite_status graph_lite_any_path(const graph_lite_graph* graph, graph_lite_id start,
+                                      graph_lite_id target, graph_lite_walk_direction direction,
+                                      int filter_node_tag, graph_lite_tag node_tag,
+                                      int filter_edge_tag, graph_lite_tag edge_tag,
+                                      graph_lite_id* buffer, uint64_t capacity,
+                                      uint64_t* out_count);
+
+/* Returns an admissible path with the fewest edges (unweighted shortest path). */
+graph_lite_status graph_lite_shortest_path(const graph_lite_graph* graph, graph_lite_id start,
+                                           graph_lite_id target,
+                                           graph_lite_walk_direction direction, int filter_node_tag,
+                                           graph_lite_tag node_tag, int filter_edge_tag,
+                                           graph_lite_tag edge_tag, graph_lite_id* buffer,
+                                           uint64_t capacity, uint64_t* out_count);
 
 #ifdef __cplusplus
 } /* extern "C" */

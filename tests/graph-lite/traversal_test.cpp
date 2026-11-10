@@ -3,6 +3,7 @@
 #include <gtest/gtest.h>
 
 #include <algorithm>
+#include <array>
 #include <memory>
 #include <vector>
 
@@ -56,6 +57,30 @@ std::vector<Id> walk(const graph_lite_graph* graph, Id start, graph_lite_walk_or
         *partial = value != 0;
     }
     return ids;
+}
+
+void expect_path_uses_allowed_edges(const graph_lite_graph* graph, const std::vector<Id>& path,
+                                    graph_lite_walk_direction direction, graph_lite_tag edge_tag) {
+    for (size_t index = 1; index < path.size(); ++index) {
+        const Id from = direction == GRAPH_LITE_WALK_FORWARD ? path[index - 1] : path[index];
+        const Id to = direction == GRAPH_LITE_WALK_FORWARD ? path[index] : path[index - 1];
+        bool connected = false;
+        size_t edge_count = 0;
+        ASSERT_EQ(graph_lite_out_edges(graph, from, nullptr, 0, &edge_count),
+                  GRAPH_LITE_ERR_BUFFER_TOO_SMALL);
+        std::vector<Id> edges(edge_count);
+        ASSERT_EQ(graph_lite_out_edges(graph, from, edges.data(), edges.size(), &edge_count),
+                  GRAPH_LITE_OK);
+        for (size_t edge_index = 0; edge_index < edge_count; ++edge_index) {
+            Id edge_from = 0;
+            Id edge_to = 0;
+            graph_lite_tag tag = 0;
+            ASSERT_EQ(graph_lite_edge_info(graph, edges[edge_index], &edge_from, &edge_to, &tag),
+                      GRAPH_LITE_OK);
+            connected = connected || (edge_to == to && tag == edge_tag);
+        }
+        EXPECT_TRUE(connected);
+    }
 }
 
 TEST(Traversal, BreadthFirstAndDepthFirstYieldDistinctNodes) {
@@ -182,6 +207,86 @@ TEST(Traversal, CppWrapperCollectsResultsAndPartialStatus) {
         graph.traverse(a, GRAPH_LITE_WALK_BREADTH_FIRST, GRAPH_LITE_WALK_FORWARD, 1);
     EXPECT_EQ(result.ids, (std::vector<Id>{a, b}));
     EXPECT_TRUE(result.partial);
+}
+
+TEST(Traversal, PathsRespectDirectionFiltersAndShortestHopCount) {
+    auto graph = make_graph();
+    const Id a = add_node(graph.get(), 1);
+    const Id b = add_node(graph.get(), 1);
+    const Id c = add_node(graph.get(), 1);
+    const Id d = add_node(graph.get(), 1);
+    const Id excluded = add_node(graph.get(), 2);
+    add_edge(graph.get(), a, b, 7);
+    add_edge(graph.get(), b, d, 7);
+    add_edge(graph.get(), a, c, 7);
+    add_edge(graph.get(), c, d, 7);
+    add_edge(graph.get(), a, d, 8);
+    add_edge(graph.get(), a, excluded, 7);
+    add_edge(graph.get(), excluded, d, 7);
+
+    std::array<Id, 4> path{};
+    uint64_t count = 0;
+    EXPECT_EQ(graph_lite_shortest_path(graph.get(), a, d, GRAPH_LITE_WALK_FORWARD, 0, 0, 1, 7,
+                                       path.data(), path.size(), &count),
+              GRAPH_LITE_OK);
+    EXPECT_EQ(std::vector<Id>(path.begin(), path.begin() + count), (std::vector<Id>{a, b, d}));
+    EXPECT_EQ(graph_lite_any_path(graph.get(), d, a, GRAPH_LITE_WALK_REVERSE, 1, 1, 1, 7,
+                                  path.data(), path.size(), &count),
+              GRAPH_LITE_OK);
+    EXPECT_EQ(path.front(), d);
+    EXPECT_EQ(path[count - 1], a);
+}
+
+TEST(Traversal, PathsReportNoPathAndKeepBufferContract) {
+    auto graph = make_graph();
+    const Id a = add_node(graph.get());
+    const Id b = add_node(graph.get());
+    const Id c = add_node(graph.get());
+    add_edge(graph.get(), a, b, 1);
+    std::array<Id, 3> path{999, 999, 999};
+    uint64_t count = 99;
+    EXPECT_EQ(graph_lite_any_path(graph.get(), a, c, GRAPH_LITE_WALK_FORWARD, 0, 0, 0, 0,
+                                  path.data(), path.size(), &count),
+              GRAPH_LITE_ERR_NO_PATH);
+    EXPECT_EQ(count, 0);
+    EXPECT_EQ(path.front(), 999);
+    EXPECT_EQ(graph_lite_shortest_path(graph.get(), a, b, GRAPH_LITE_WALK_FORWARD, 0, 0, 0, 0,
+                                       nullptr, 0, &count),
+              GRAPH_LITE_ERR_BUFFER_TOO_SMALL);
+    EXPECT_EQ(count, 2);
+}
+
+TEST(Traversal, GeneratedPathsOnlyUseAllowedEdges) {
+    for (size_t size = 2; size <= 12; ++size) {
+        auto graph = make_graph();
+        std::vector<Id> ids;
+        for (size_t i = 0; i < size; ++i)
+            ids.push_back(add_node(graph.get(), i % 3));
+        for (size_t from = 0; from < size; ++from)
+            for (size_t to = 0; to < size; ++to)
+                if ((from * 7 + to * 11 + size) % 4 == 0)
+                    add_edge(graph.get(), ids[from], ids[to], (from + to) % 2);
+
+        for (const auto direction : {GRAPH_LITE_WALK_FORWARD, GRAPH_LITE_WALK_REVERSE}) {
+            const Id start = direction == GRAPH_LITE_WALK_FORWARD ? ids.front() : ids.back();
+            const Id target = direction == GRAPH_LITE_WALK_FORWARD ? ids.back() : ids.front();
+            for (const auto find_path : {graph_lite_any_path, graph_lite_shortest_path}) {
+                std::vector<Id> path(size);
+                uint64_t count = 0;
+                const graph_lite_status status =
+                    find_path(graph.get(), start, target, direction, 0, 0, 1, 1, path.data(),
+                              path.size(), &count);
+                if (status == GRAPH_LITE_ERR_NO_PATH)
+                    continue;
+                ASSERT_EQ(status, GRAPH_LITE_OK);
+                ASSERT_GE(count, 1);
+                path.resize(count);
+                EXPECT_EQ(path.front(), start);
+                EXPECT_EQ(path.back(), target);
+                expect_path_uses_allowed_edges(graph.get(), path, direction, 1);
+            }
+        }
+    }
 }
 
 } // namespace

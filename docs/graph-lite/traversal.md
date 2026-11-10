@@ -1,14 +1,15 @@
 # Traversal
 
 > Shipped in v0.0.1-wip through the C ABI in `graph-lite.h` and the C++
-> `graph_lite::Graph::traverse` convenience method.
+> `graph_lite::Graph::traverse` convenience method. Direction-aware filtered
+> any-path and unweighted-shortest-path queries ship through the same C ABI.
 
 ## The API is programmatic, not declarative
 
 The library exposes native breadth-first and depth-first walks over forward or
 reverse adjacency. A traversal is an opaque C handle; opening it snapshots node
 ids, then `next` yields them until `GRAPH_LITE_ERR_END`. The C++ wrapper collects
-those ids with the same ABI calls. Path finding is not part of this operation.
+those ids with the same ABI calls.
 
 No Cypher, no Datalog, no SQL. A query language is a large, permanent surface, and
 which queries actually matter is exactly what the first year of real usage
@@ -48,3 +49,21 @@ depth or result limit; all other values are inclusive limits. Callers on a laten
 budget are expected to set both. `graph_lite_traversal_partial` reports true only
 when a depth or result limit prevented an otherwise admissible candidate. Filters,
 cycles, and exhausted adjacency do not make a complete traversal partial.
+
+## Paths
+
+`graph_lite_any_path` returns an admissible route, and
+`graph_lite_shortest_path` returns an admissible route with the fewest edges.
+Both follow `FORWARD` outgoing or `REVERSE` incoming adjacency, applying edge and
+then destination-node tag filters before a candidate enters the search, exactly as
+walks do. The returned node-id sequence starts with `start`, ends with `target`,
+and every adjacent pair is connected by an admitted directed edge in the requested
+direction. `start == target` returns that one node even when the node filter would
+exclude it.
+
+The caller owns the output buffer. Pass `NULL` and zero capacity to obtain the
+required node-id count; a too-small buffer returns `GRAPH_LITE_ERR_BUFFER_TOO_SMALL`
+without writing it. A null buffer with nonzero capacity is invalid. Missing start or
+target nodes return `GRAPH_LITE_ERR_NOT_FOUND`; when both endpoints exist but no
+route survives direction and filters, `GRAPH_LITE_ERR_NO_PATH` returns with count
+zero. Thus an unreachable target cannot be mistaken for a successful zero-hop path.

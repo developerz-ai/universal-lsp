@@ -4,7 +4,9 @@
 
 #include "store.hpp"
 
+#include <algorithm>
 #include <memory>
+#include <unordered_map>
 #include <unordered_set>
 #include <vector>
 
@@ -118,6 +120,97 @@ graph_lite_status build_walk(const graph_lite_graph& graph, graph_lite_id start,
     return GRAPH_LITE_OK;
 }
 
+graph_lite_status build_shortest_path(const graph_lite_graph& graph, graph_lite_id start,
+                                      graph_lite_id target, graph_lite_walk_direction direction,
+                                      int filter_node_tag, graph_lite_tag node_tag,
+                                      int filter_edge_tag, graph_lite_tag edge_tag,
+                                      std::vector<graph_lite_id>& path) {
+    if (!graph.store.has_node(start) || !graph.store.has_node(target))
+        return GRAPH_LITE_ERR_NOT_FOUND;
+    if (start == target) {
+        path.push_back(start);
+        return GRAPH_LITE_OK;
+    }
+
+    std::unordered_set<graph_lite_id> discovered{start};
+    std::unordered_map<graph_lite_id, graph_lite_id> parent;
+    std::vector<graph_lite_id> work{start};
+    size_t next = 0;
+    while (next < work.size()) {
+        const graph_lite_id current = work[next++];
+        uint64_t edge_count = 0;
+        const bool reverse = direction == GRAPH_LITE_WALK_REVERSE;
+        graph_lite_status status = reverse
+                                       ? graph.store.in_edge_ids(current, nullptr, 0, &edge_count)
+                                       : graph.store.out_edge_ids(current, nullptr, 0, &edge_count);
+        if (status != GRAPH_LITE_ERR_BUFFER_TOO_SMALL && status != GRAPH_LITE_OK)
+            return status;
+        std::vector<graph_lite_id> edges(edge_count);
+        status = reverse ? graph.store.in_edge_ids(current, edges.data(), edge_count, &edge_count)
+                         : graph.store.out_edge_ids(current, edges.data(), edge_count, &edge_count);
+        if (status != GRAPH_LITE_OK)
+            return status;
+        for (const graph_lite_id edge : edges) {
+            graph_lite_id from = 0;
+            graph_lite_id to = 0;
+            graph_lite_tag candidate_edge_tag = 0;
+            status = graph.store.edge_info(edge, &from, &to, &candidate_edge_tag);
+            if (status != GRAPH_LITE_OK)
+                return status;
+            const graph_lite_id candidate = reverse ? from : to;
+            if ((filter_edge_tag != 0 && candidate_edge_tag != edge_tag) ||
+                discovered.contains(candidate))
+                continue;
+            graph_lite_tag candidate_node_tag = 0;
+            status = graph.store.node_type(candidate, &candidate_node_tag);
+            if (status != GRAPH_LITE_OK)
+                return status;
+            if (filter_node_tag != 0 && candidate_node_tag != node_tag)
+                continue;
+            discovered.insert(candidate);
+            parent.emplace(candidate, current);
+            if (candidate == target) {
+                for (graph_lite_id node = target;; node = parent.at(node)) {
+                    path.push_back(node);
+                    if (node == start)
+                        break;
+                }
+                std::reverse(path.begin(), path.end());
+                return GRAPH_LITE_OK;
+            }
+            work.push_back(candidate);
+        }
+    }
+    return GRAPH_LITE_ERR_NO_PATH;
+}
+
+graph_lite_status find_path(const graph_lite_graph* graph, graph_lite_id start,
+                            graph_lite_id target, graph_lite_walk_direction direction,
+                            int filter_node_tag, graph_lite_tag node_tag, int filter_edge_tag,
+                            graph_lite_tag edge_tag, graph_lite_id* buffer, uint64_t capacity,
+                            uint64_t* out_count) {
+    if (!graph || !out_count || !valid_direction(direction) || (!buffer && capacity != 0))
+        return GRAPH_LITE_ERR_INVALID_ARGUMENT;
+    return guarded([&] {
+        std::vector<graph_lite_id> path;
+        const graph_lite_status status =
+            build_shortest_path(*graph, start, target, direction, filter_node_tag, node_tag,
+                                filter_edge_tag, edge_tag, path);
+        if (status == GRAPH_LITE_ERR_NO_PATH) {
+            *out_count = 0;
+            return status;
+        }
+        if (status != GRAPH_LITE_OK)
+            return status;
+        *out_count = path.size();
+        if (capacity < path.size())
+            return GRAPH_LITE_ERR_BUFFER_TOO_SMALL;
+        if (!path.empty())
+            std::copy(path.begin(), path.end(), buffer);
+        return GRAPH_LITE_OK;
+    });
+}
+
 } // namespace
 
 extern "C" {
@@ -163,6 +256,26 @@ graph_lite_status graph_lite_traversal_partial(const graph_lite_traversal* trave
 
 void graph_lite_traversal_destroy(graph_lite_traversal* traversal) {
     delete traversal;
+}
+
+graph_lite_status graph_lite_any_path(const graph_lite_graph* graph, graph_lite_id start,
+                                      graph_lite_id target, graph_lite_walk_direction direction,
+                                      int filter_node_tag, graph_lite_tag node_tag,
+                                      int filter_edge_tag, graph_lite_tag edge_tag,
+                                      graph_lite_id* buffer, uint64_t capacity,
+                                      uint64_t* out_count) {
+    return find_path(graph, start, target, direction, filter_node_tag, node_tag, filter_edge_tag,
+                     edge_tag, buffer, capacity, out_count);
+}
+
+graph_lite_status graph_lite_shortest_path(const graph_lite_graph* graph, graph_lite_id start,
+                                           graph_lite_id target,
+                                           graph_lite_walk_direction direction, int filter_node_tag,
+                                           graph_lite_tag node_tag, int filter_edge_tag,
+                                           graph_lite_tag edge_tag, graph_lite_id* buffer,
+                                           uint64_t capacity, uint64_t* out_count) {
+    return find_path(graph, start, target, direction, filter_node_tag, node_tag, filter_edge_tag,
+                     edge_tag, buffer, capacity, out_count);
 }
 
 } // extern "C"

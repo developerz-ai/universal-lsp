@@ -25,7 +25,7 @@ const char* graph_lite_status_string(graph_lite_status status) {
      * that order, and never renumbering — the numbers are the ABI. */
     static const char* const kMessages[] = {
         "ok",           "invalid argument", "out of memory",    "not found",        "i/o error",
-        "corrupt data", "version mismatch", "buffer too small", "end of iteration",
+        "corrupt data", "version mismatch", "buffer too small", "end of iteration", "no path",
     };
     const int code = static_cast<int>(status);
     const int count = static_cast<int>(sizeof(kMessages) / sizeof(kMessages[0]));

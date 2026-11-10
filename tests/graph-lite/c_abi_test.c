@@ -17,6 +17,7 @@ int graph_lite_c_abi_smoke(void) {
     graph_lite_graph* g = 0;
     graph_lite_id a = GRAPH_LITE_INVALID_ID;
     graph_lite_id b = GRAPH_LITE_INVALID_ID;
+    graph_lite_id c = GRAPH_LITE_INVALID_ID;
     graph_lite_id e = GRAPH_LITE_INVALID_ID;
     graph_lite_id from = GRAPH_LITE_INVALID_ID;
     graph_lite_id to = GRAPH_LITE_INVALID_ID;
@@ -62,6 +63,27 @@ int graph_lite_c_abi_smoke(void) {
     if (graph_lite_out_edges(g, a, listed, 1, &count) != GRAPH_LITE_OK || count != 1 ||
         listed[0] != e)
         return 12;
+    {
+        graph_lite_id path[2] = {111, 222};
+        uint64_t path_count = 0;
+        if (graph_lite_shortest_path(g, a, b, GRAPH_LITE_WALK_FORWARD, 0, 0, 1, 2, 0, 0,
+                                     &path_count) != GRAPH_LITE_ERR_BUFFER_TOO_SMALL ||
+            path_count != 2)
+            return 18;
+        if (graph_lite_any_path(g, a, b, GRAPH_LITE_WALK_FORWARD, 0, 0, 1, 2, path, 2,
+                                &path_count) != GRAPH_LITE_OK ||
+            path_count != 2 || path[0] != a || path[1] != b)
+            return 19;
+        if (graph_lite_add_node(g, 3, &c) != GRAPH_LITE_OK)
+            return 20;
+        path_count = 99;
+        if (graph_lite_any_path(g, a, c, GRAPH_LITE_WALK_FORWARD, 0, 0, 0, 0, path, 2,
+                                &path_count) != GRAPH_LITE_ERR_NO_PATH ||
+            path_count != 0 || path[0] != a || path[1] != b)
+            return 21;
+        if (graph_lite_remove_node(g, c) != GRAPH_LITE_OK)
+            return 22;
+    }
 
     /* Removing a node takes its incident edges with it. */
     if (graph_lite_remove_node(g, b) != GRAPH_LITE_OK)

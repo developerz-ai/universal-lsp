@@ -12,7 +12,8 @@ on top; nobody else has to care that the implementation is C++.
 > in-memory store: contiguous forward and reverse adjacency, stable ids that are
 > never reused, tags and typed properties. Native BFS/DFS traversal ships with
 > forward/reverse directions, tag filters, limits, and partial-result status.
-> Persistence and path finding remain design.
+> Direction-aware filtered any-path and unweighted shortest-path queries also
+> ship through the C ABI. Persistence remains design.
 
 ## Two headers, one contract
 
@@ -105,6 +106,10 @@ Add and remove nodes and edges. Walk breadth-first or depth-first, forward or
 reverse, with bounded or `UINT64_MAX`-unbounded depth and results. Filter node and
 edge tags *during* the walk, before candidates enter the worklist; inspect explicit
 partial-result status when a limit stopped an otherwise admissible candidate.
+
+Find any admissible path or an unweighted shortest path in either direction with
+the same tag filters. Paths use caller-owned node-id buffers; `NO_PATH` distinguishes
+unreachable live endpoints from a successful one-node path.
 
 Storage is dense records with per-node contiguous runs in flat forward and reverse
 pools, cache-friendly to traverse without making persistence layout a promise.

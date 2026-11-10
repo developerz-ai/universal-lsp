@@ -217,6 +217,23 @@ public:
         return result;
     }
 
+    std::vector<graph_lite_id> any_path(graph_lite_id start, graph_lite_id target,
+                                        graph_lite_walk_direction direction,
+                                        bool filter_node_tag = false, graph_lite_tag node_tag = 0,
+                                        bool filter_edge_tag = false,
+                                        graph_lite_tag edge_tag = 0) const {
+        return path_(graph_lite_any_path, start, target, direction, filter_node_tag, node_tag,
+                     filter_edge_tag, edge_tag);
+    }
+
+    std::vector<graph_lite_id>
+    shortest_path(graph_lite_id start, graph_lite_id target, graph_lite_walk_direction direction,
+                  bool filter_node_tag = false, graph_lite_tag node_tag = 0,
+                  bool filter_edge_tag = false, graph_lite_tag edge_tag = 0) const {
+        return path_(graph_lite_shortest_path, start, target, direction, filter_node_tag, node_tag,
+                     filter_edge_tag, edge_tag);
+    }
+
 private:
     using DegreeFn = graph_lite_status (*)(const graph_lite_graph*, graph_lite_id, uint64_t*);
     using NeighborFn = graph_lite_status (*)(const graph_lite_graph*, graph_lite_id, graph_lite_id*,
@@ -229,6 +246,9 @@ private:
                                            const char*, double*);
     using BoolFn = graph_lite_status (*)(const graph_lite_graph*, graph_lite_kind, graph_lite_id,
                                          const char*, bool*);
+    using PathFn = graph_lite_status (*)(const graph_lite_graph*, graph_lite_id, graph_lite_id,
+                                         graph_lite_walk_direction, int, graph_lite_tag, int,
+                                         graph_lite_tag, graph_lite_id*, uint64_t, uint64_t*);
 
     uint64_t degree_(DegreeFn degree, graph_lite_id id) const {
         uint64_t value = 0;
@@ -252,6 +272,22 @@ private:
         std::vector<graph_lite_id> result(count);
         if (count > 0)
             check(edges(handle_, id, result.data(), result.size(), &count));
+        return result;
+    }
+
+    std::vector<graph_lite_id> path_(PathFn path, graph_lite_id start, graph_lite_id target,
+                                     graph_lite_walk_direction direction, bool filter_node_tag,
+                                     graph_lite_tag node_tag, bool filter_edge_tag,
+                                     graph_lite_tag edge_tag) const {
+        uint64_t count = 0;
+        const graph_lite_status first =
+            path(handle_, start, target, direction, filter_node_tag, node_tag, filter_edge_tag,
+                 edge_tag, nullptr, 0, &count);
+        if (first != GRAPH_LITE_ERR_BUFFER_TOO_SMALL)
+            check(first);
+        std::vector<graph_lite_id> result(count);
+        check(path(handle_, start, target, direction, filter_node_tag, node_tag, filter_edge_tag,
+                   edge_tag, result.data(), result.size(), &count));
         return result;
     }
 

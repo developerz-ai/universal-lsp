@@ -10,8 +10,11 @@ import {
   type Shell,
 } from './prereqs.ts';
 
-/** A box with exactly `bins` on PATH, where `sudo -n true` exits `sudoCode`. */
-function box(bins: string[], sudoCode = 0): Shell & { ran: string[][] } {
+/**
+ * A box with exactly `bins` on PATH, where `sudo -n true` exits `sudoCode` and
+ * `apt-get update` exits `updateCode`.
+ */
+function box(bins: string[], sudoCode = 0, updateCode = 0): Shell & { ran: string[][] } {
   const ran: string[][] = [];
   const ok: RunResult = { code: 0, stdout: '', stderr: '' };
   return {
@@ -19,10 +22,16 @@ function box(bins: string[], sudoCode = 0): Shell & { ran: string[][] } {
     has: async (bin) => bins.includes(bin),
     run: async (argv) => {
       ran.push(argv);
-      return argv.join(' ') === 'sudo -n true' ? { ...ok, code: sudoCode } : ok;
+      const cmd = argv.join(' ');
+      if (cmd === 'sudo -n true') return { ...ok, code: sudoCode };
+      if (cmd.includes('apt-get update'))
+        return { ...ok, code: updateCode, stderr: 'E: Failed to fetch' };
+      return ok;
     },
     runOrThrow: async (argv) => {
       ran.push(argv);
+      // The real runOrThrow exits setup on a non-zero code.
+      if (argv.includes('update') && updateCode !== 0) throw new Error(`exited ${updateCode}`);
     },
   };
 }
@@ -34,6 +43,14 @@ describe('installMissing', () => {
 
   it('installs the missing required packages on a passwordless-sudo apt box', async () => {
     const sh = box(['apt-get', 'sudo']);
+    expect(await installMissing(missing, sh)).toEqual(['cmake', 'clang-format']);
+    expect(installs(sh).at(-1)?.slice(-2)).toEqual(['cmake', 'clang-format']);
+  });
+
+  it('still installs when apt-get update could not refresh every index', async () => {
+    // A mirror that drops one Packages.xz makes `apt-get update` exit 100 (measured on a
+    // fleet box, 2026-11-10); the lists already on disk still resolve the packages.
+    const sh = box(['apt-get', 'sudo'], 0, 100);
     expect(await installMissing(missing, sh)).toEqual(['cmake', 'clang-format']);
     expect(installs(sh).at(-1)?.slice(-2)).toEqual(['cmake', 'clang-format']);
   });

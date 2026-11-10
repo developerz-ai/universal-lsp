@@ -3,3 +3,11 @@
 ulsp_add_test(graph_lite_version_test
     SOURCES version_test.cpp c_abi_test.c
     LINK    graph-lite::graph-lite)
+
+ulsp_add_test(graph_lite_model_test
+    SOURCES model_test.cpp
+    LINK    graph-lite::graph-lite)
+
+ulsp_add_test(graph_lite_model_properties_test
+    SOURCES model_properties_test.cpp
+    LINK    graph-lite::graph-lite)

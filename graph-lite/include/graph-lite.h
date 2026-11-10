@@ -30,9 +30,10 @@
  *   discipline — see scripts/lint/graph-lite-vocabulary.ts.
  *
  * STATUS
- *   Pre-implementation. This header exposes version information only. The
- *   node/edge model, CSR-backed storage, traversal API and persistence format
- *   land in build phase 1 — design in docs/graph-lite/README.md.
+ *   Version information and the in-memory node/edge model with typed
+ *   properties: stable ids, tags, adjacency listing. Traversal, CSR-backed
+ *   storage and the persistence format are still design — see
+ *   docs/graph-lite/README.md.
  *
  * Licensed under the MIT License. See graph-lite/LICENSE — deliberately more
  * permissive than the engine that consumes it.
@@ -44,6 +45,9 @@
 #define GRAPH_LITE_VERSION_MINOR 0
 #define GRAPH_LITE_VERSION_PATCH 1
 #define GRAPH_LITE_VERSION_STRING "0.0.1"
+
+#include <stddef.h>
+#include <stdint.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -88,6 +92,136 @@ const char* graph_lite_version_string(void);
  * code returns a string saying so rather than NULL, because a binding that has to
  * null-check an error-message getter will eventually forget. */
 const char* graph_lite_status_string(graph_lite_status status);
+
+/* ------------------------------------------------------------------------ *
+ * Node/edge model
+ *
+ * Ids are 64-bit and 0 is never valid (GRAPH_LITE_INVALID_ID). Node ids and edge
+ * ids are SEPARATE spaces, each issued from its own counter starting at 1. A
+ * counter never goes down and an id is never reused after removal, so an id a
+ * caller holds either names the same thing it always did or is NOT_FOUND.
+ *
+ * A tag is an opaque 64-bit value the caller defines. It is compared with ==
+ * and nothing else: no registry, no reserved value (0 and UINT64_MAX are
+ * ordinary tags), no validation.
+ * ------------------------------------------------------------------------ */
+
+/* Opaque handle. One graph is not safe for concurrent mutation; concurrent
+ * reads of an unmodified graph are fine. */
+typedef struct graph_lite_graph graph_lite_graph;
+
+typedef uint64_t graph_lite_id;
+typedef uint64_t graph_lite_tag;
+
+#define GRAPH_LITE_INVALID_ID ((graph_lite_id)0)
+
+/* Which id space an owner id belongs to, for the property entry points. */
+typedef enum graph_lite_kind {
+    GRAPH_LITE_NODE = 0,
+    GRAPH_LITE_EDGE = 1,
+    GRAPH_LITE_KIND_FORCE_INT = 0x7fffffff
+} graph_lite_kind;
+
+/* The type of value a property currently holds. */
+typedef enum graph_lite_value_kind {
+    GRAPH_LITE_VALUE_INT = 0,
+    GRAPH_LITE_VALUE_DOUBLE = 1,
+    GRAPH_LITE_VALUE_BOOL = 2,
+    GRAPH_LITE_VALUE_STRING = 3,
+    GRAPH_LITE_VALUE_KIND_FORCE_INT = 0x7fffffff
+} graph_lite_value_kind;
+
+/* Creates an empty graph. *out is set on success only. Release with
+ * graph_lite_graph_destroy. */
+graph_lite_status graph_lite_graph_create(graph_lite_graph** out);
+
+/* Releases a graph and everything in it. NULL is accepted and ignored. */
+void graph_lite_graph_destroy(graph_lite_graph* g);
+
+/* Adds a node with the given tag; its new id is written to *out_id. */
+graph_lite_status graph_lite_add_node(graph_lite_graph* g, graph_lite_tag tag,
+                                      graph_lite_id* out_id);
+
+/* Removes a node. Cascades: every incident edge, in either direction, is
+ * removed too, along with the properties of the node and of those edges. NOT_FOUND
+ * if the id is 0 or absent. */
+graph_lite_status graph_lite_remove_node(graph_lite_graph* g, graph_lite_id id);
+
+/* Reads a node's tag. NOT_FOUND if the id is 0 or absent. */
+graph_lite_status graph_lite_node_tag(const graph_lite_graph* g, graph_lite_id id,
+                                      graph_lite_tag* out_tag);
+
+/* Adds a directed edge from -> to. NOT_FOUND if either endpoint is absent.
+ * Self-loops and parallel edges are allowed. */
+graph_lite_status graph_lite_add_edge(graph_lite_graph* g, graph_lite_id from, graph_lite_id to,
+                                      graph_lite_tag tag, graph_lite_id* out_id);
+
+/* Removes an edge and its properties. NOT_FOUND if the id is 0 or absent. */
+graph_lite_status graph_lite_remove_edge(graph_lite_graph* g, graph_lite_id id);
+
+/* Reads an edge's endpoints and tag. Each out pointer is optional (may be NULL).
+ * NOT_FOUND if the id is 0 or absent. */
+graph_lite_status graph_lite_edge_info(const graph_lite_graph* g, graph_lite_id id,
+                                       graph_lite_id* from, graph_lite_id* to, graph_lite_tag* tag);
+
+/* Number of live nodes / edges. 0 for a NULL graph. */
+size_t graph_lite_node_count(const graph_lite_graph* g);
+size_t graph_lite_edge_count(const graph_lite_graph* g);
+
+/* Lists the ids of the edges leaving / entering a node, ascending, into a
+ * caller-owned buffer of cap entries. *count is ALWAYS set to the required size;
+ * if cap < required the result is BUFFER_TOO_SMALL and nothing is promised about
+ * buf. buf may be NULL when cap == 0 (the size query). A self-loop appears in
+ * both lists. NOT_FOUND if the node is 0 or absent. */
+graph_lite_status graph_lite_out_edges(const graph_lite_graph* g, graph_lite_id node,
+                                       graph_lite_id* buf, size_t cap, size_t* count);
+graph_lite_status graph_lite_in_edges(const graph_lite_graph* g, graph_lite_id node,
+                                      graph_lite_id* buf, size_t cap, size_t* count);
+
+/* ------------------------------------------------------------------------ *
+ * Properties
+ *
+ * Owned by a node or an edge: (kind, id). Keys are NUL-terminated strings; any
+ * non-NULL string is a key, the empty string included. Setting an existing key
+ * overwrites it and may change its value kind. Removing a node or edge removes
+ * its properties.
+ *
+ * Errors: NULL pointer arguments or an unknown kind -> INVALID_ARGUMENT; a
+ * missing owner or key -> NOT_FOUND; a get_* of the wrong value kind ->
+ * INVALID_ARGUMENT.
+ * ------------------------------------------------------------------------ */
+
+graph_lite_status graph_lite_set_int(graph_lite_graph* g, graph_lite_kind kind, graph_lite_id id,
+                                     const char* key, int64_t value);
+graph_lite_status graph_lite_set_double(graph_lite_graph* g, graph_lite_kind kind, graph_lite_id id,
+                                        const char* key, double value);
+/* Any nonzero value is stored as true. */
+graph_lite_status graph_lite_set_bool(graph_lite_graph* g, graph_lite_kind kind, graph_lite_id id,
+                                      const char* key, int value);
+/* The string is copied. */
+graph_lite_status graph_lite_set_string(graph_lite_graph* g, graph_lite_kind kind, graph_lite_id id,
+                                        const char* key, const char* value);
+
+graph_lite_status graph_lite_property_kind(const graph_lite_graph* g, graph_lite_kind kind,
+                                           graph_lite_id id, const char* key,
+                                           graph_lite_value_kind* out);
+
+graph_lite_status graph_lite_get_int(const graph_lite_graph* g, graph_lite_kind kind,
+                                     graph_lite_id id, const char* key, int64_t* out);
+graph_lite_status graph_lite_get_double(const graph_lite_graph* g, graph_lite_kind kind,
+                                        graph_lite_id id, const char* key, double* out);
+/* *out is 0 or 1. */
+graph_lite_status graph_lite_get_bool(const graph_lite_graph* g, graph_lite_kind kind,
+                                      graph_lite_id id, const char* key, int* out);
+/* *len is the byte length excluding the NUL, always set on a string property.
+ * Success needs cap >= *len + 1 and NUL-terminates buf; otherwise
+ * BUFFER_TOO_SMALL. buf may be NULL when cap == 0 (the size query). */
+graph_lite_status graph_lite_get_string(const graph_lite_graph* g, graph_lite_kind kind,
+                                        graph_lite_id id, const char* key, char* buf, size_t cap,
+                                        size_t* len);
+
+graph_lite_status graph_lite_remove_property(graph_lite_graph* g, graph_lite_kind kind,
+                                             graph_lite_id id, const char* key);
 
 #ifdef __cplusplus
 } /* extern "C" */

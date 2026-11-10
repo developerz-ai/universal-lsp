@@ -87,7 +87,11 @@ const edge = edgeSlot[0];
 
 const label = cString('label');
 const alpha = cString('alpha');
-expect(symbols.graph_lite_set_string(graph, NODE, first, ptr(label), ptr(alpha)), OK, 'set property');
+expect(
+  symbols.graph_lite_set_string(graph, NODE, first, ptr(label), ptr(alpha)),
+  OK,
+  'set property',
+);
 const lengthSlot = sizeSlot();
 expect(
   symbols.graph_lite_get_string(graph, NODE, first, ptr(label), null, 0, ptr(lengthSlot)),

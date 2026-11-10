@@ -1,7 +1,7 @@
 # graph-lite
 
 A small, fast, dependency-free, embeddable property-graph library. One public
-header, one static library, no server, no query language, no runtime
+header, one shared library, no server, no query language, no runtime
 dependencies.
 
 **The public surface is a C ABI.** Anything with an FFI can embed it — C, C++,
@@ -108,6 +108,10 @@ cmake --build build/graph-lite
 Or vendor the directory and `add_subdirectory(graph-lite)`. It configures
 standalone, so neither path needs anything else from the repository it currently
 lives in.
+
+For external-runtime ABI probes, see [`../../bindings/`](../../bindings/). The
+Ruby, Bun, and Python examples there load this shared library directly; they are
+reference examples, not supported packages.
 
 ## License and versioning
 

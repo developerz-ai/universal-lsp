@@ -21,7 +21,7 @@ set(GRAPH_LITE_VERSION 0.0.1)
 # The public surface is C (graph-lite.h); graph-lite.hpp is header-only
 # ergonomics over it and exports nothing. Sources may be C++ internally — the ABI
 # is what is constrained, not the implementation language.
-add_library(graph-lite
+add_library(graph-lite SHARED
     src/version.cpp
     src/store.cpp
     src/graph.cpp

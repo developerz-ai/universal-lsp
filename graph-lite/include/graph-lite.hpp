@@ -5,9 +5,11 @@
 // ever reaches the linkable surface. The direction matters: the C header is the
 // contract, this is a convenience — never the reverse.
 //
-// Including this instead of the C header buys RAII handles, real types, and
-// exceptions where a code would otherwise be checked by hand. Callers binding
-// from another language ignore it.
+// Including this instead of the C header buys a real Version type and exceptions
+// that carry the status code. That is the whole export surface today — Version,
+// version(), version_string(), Error, check(); no RAII handle type exists, and
+// none is promised before the first tag. Callers binding from another language
+// ignore it.
 #ifndef GRAPH_LITE_HPP
 #define GRAPH_LITE_HPP
 

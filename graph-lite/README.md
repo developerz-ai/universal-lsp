@@ -8,16 +8,16 @@ library, no server, no query language, no runtime dependencies.
 Ruby, JavaScript, Python, Rust, Go. C++ callers get a header-only ergonomics layer
 on top; nobody else has to care that the implementation is C++.
 
-> **v0.0.1 — work in progress.** The node/edge model ships as an in-memory store:
+> **v0.1.0 — first release.** The node/edge model ships as an in-memory store:
 > stable ids, tags, adjacency listing and typed properties. Traversal, CSR storage
-> and persistence are still design.
+> and persistence are design, not shipped behaviour.
 
 ## Two headers, one contract
 
 | Header | For | Is |
 |---|---|---|
 | `graph-lite.h` | C, and every FFI | **The contract.** C linkage, opaque handles, integer status codes, caller-owned buffers. |
-| `graph-lite.hpp` | C++ | Header-only ergonomics over the C header — RAII, real types, exceptions. Exports no entry point of its own. |
+| `graph-lite.hpp` | C++ | Header-only ergonomics over the C header — real types, exceptions. Exports no entry point of its own. |
 
 The direction is deliberate: C++ has no stable ABI across compilers or standard
 library versions, so a C++ signature in a public header is unlinkable from another
@@ -92,6 +92,10 @@ const { symbols } = dlopen("libgraph-lite.so", {
 Every one of those binds the same entry points. That is the point of the C ABI:
 no per-language port, no serialisation, no wrapper library to keep in sync.
 
+One build note those snippets imply: the default build is a **static** library.
+An FFI that dlopens needs a shared one — configure with `-DBUILD_SHARED_LIBS=ON`
+and load the resulting `libgraph-lite.so` (`.dylib` / `.dll` elsewhere).
+
 ## Errors
 
 Every failure a caller must tell apart has its own `graph_lite_status` code. No
@@ -115,14 +119,18 @@ enforced by a lint rule rather than left to review.
 
 ## What it does
 
-Add and remove nodes and edges. Walk breadth-first or depth-first, bounded or
-unbounded. Walk **reverse edges** — the "what points at this" direction — as a
-first-class operation. Find the shortest or any path between two ids. Filter by
-node type and edge type *during* the walk, not after it.
+The in-memory model, and only that, ships today:
 
-Storage is CSR-style: flat contiguous arrays, cache-friendly to traverse, and
-close enough to the persisted layout that a reload is nearly a read rather than a
-parse-and-rebuild.
+- Add and remove nodes and edges. Removing a node removes its incident edges.
+- Read a node's tag, or an edge's endpoints and tag.
+- List the ids of the edges leaving or entering a node, ascending.
+- Ask for the live node and edge counts.
+- Store typed properties — int64, double, bool, string — on nodes and edges.
+
+**Designed, not shipped:** breadth-first and depth-first walks, reverse-edge
+walks, shortest-or-any path, type filters during a walk, CSR storage and
+persistence. The design lives in [docs/graph-lite](../docs/graph-lite/); none of
+it is in the header yet.
 
 ## What it deliberately is not
 
@@ -135,10 +143,17 @@ parse-and-rebuild.
 
 ## Correctness
 
-Silent corruption is the worst thing an embedded store can do, so the persistence
-layer gets disproportionate testing: reader fuzzing, a truncation sweep over every
-offset, crash-consistency (interrupt a write anywhere — the file is the old state
-or the new one, never a third thing), and round-trip property tests.
+What ships is what is tested. Every claim above is pinned by a suite that runs on
+every change — and again under ASan + UBSan in CI:
+
+- `tests/graph-lite/c_abi_test.c` is compiled **as C** and linked into the suite,
+  so the header cannot silently stop being usable from C — and from every FFI.
+- The linked library's version and version string are asserted equal to the
+  header's macros, so a header/binary mismatch fails here, not in an embedder.
+- `graph_lite_status_string()` is asserted to never return NULL, including for a
+  code the linked library does not know.
+- Model and property suites cover ids, cascading removal, adjacency listing and
+  every property type.
 
 ## License
 

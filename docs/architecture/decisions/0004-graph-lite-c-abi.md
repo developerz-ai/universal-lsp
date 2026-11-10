@@ -34,7 +34,7 @@ header-only convenience layer over it, not the other way around.
 | Header | Language | Is |
 |---|---|---|
 | `graph-lite.h` | C (usable from C++) | **The contract.** `extern "C"`, opaque handles, integer error codes, caller-owned buffers. |
-| `graph-lite.hpp` | C++ | Header-only ergonomics — RAII handles, spans, exceptions — implemented entirely in terms of `graph-lite.h`. Adds no exported symbol of its own. |
+| `graph-lite.hpp` | C++ | Header-only ergonomics — a real `Version` type, `Error`/`check` exceptions that carry the status code — implemented entirely in terms of `graph-lite.h`. Adds no exported symbol of its own. No RAII handle type exists, and none is promised before the first tag. |
 
 Rules that follow, and are not negotiable per-function:
 

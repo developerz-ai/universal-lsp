@@ -35,16 +35,16 @@
  *   storage and the persistence format are still design — see
  *   docs/graph-lite/README.md.
  *
- * Licensed under the MIT License. See graph-lite/LICENSE — deliberately more
- * permissive than the engine that consumes it.
+ * Licensed under the MIT License. See graph-lite/LICENSE — chosen so any
+ * project, under any license, can embed and redistribute it.
  */
 #ifndef GRAPH_LITE_H
 #define GRAPH_LITE_H
 
 #define GRAPH_LITE_VERSION_MAJOR 0
-#define GRAPH_LITE_VERSION_MINOR 0
-#define GRAPH_LITE_VERSION_PATCH 1
-#define GRAPH_LITE_VERSION_STRING "0.0.1"
+#define GRAPH_LITE_VERSION_MINOR 1
+#define GRAPH_LITE_VERSION_PATCH 0
+#define GRAPH_LITE_VERSION_STRING "0.1.0"
 
 #include <stddef.h>
 #include <stdint.h>
@@ -84,7 +84,7 @@ typedef enum graph_lite_status {
  * be NULL if the caller does not want that component. */
 void graph_lite_version(int* major, int* minor, int* patch);
 
-/* Version string of the linked library, e.g. "0.0.1". Static storage; the caller
+/* Version string of the linked library, e.g. "0.1.0". Static storage; the caller
  * does not free it. */
 const char* graph_lite_version_string(void);
 

@@ -49,7 +49,7 @@ export async function run(root: string = REPO_ROOT): Promise<Finding[]> {
       line: i + 1,
       message:
         `graph-lite links a target from this repo: "${text.trim()}". It must configure and ` +
-        `build standalone (\`cmake --preset graph-lite-standalone\`). ` +
+        `build standalone (\`cmake -S graph-lite -B build/graph-lite-standalone\`). ` +
         `Guard: scripts/lint/graph-lite-boundary.ts`,
     });
   });

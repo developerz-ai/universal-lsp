@@ -37,8 +37,11 @@ Scanned — everything that ships when the library is extracted:
 `tests/graph-lite/**`, `docs/graph-lite/**`.
 
 Not scanned — repo-side glue that stays behind: `graph-lite/CMakeLists.txt` (it
-links this repo's shared warning/sanitizer interface targets when built as a
-subdirectory, and defines its own when standalone) and `graph-lite/CLAUDE.md`.
+links this repo's real warning/sanitizer interface targets when the parent
+defines them, and defines empty fallback INTERFACE targets whenever the parent
+does not — so vendoring graph-lite/ into a foreign project configures and links;
+CI's `standalone` job builds both a clean copy of graph-lite/ and such a minimal
+vendoring parent on every PR as the standing proof) and `graph-lite/CLAUDE.md`.
 
 This document lives here, not under `docs/graph-lite/`, precisely because it
 cannot be written without the vocabulary it forbids.

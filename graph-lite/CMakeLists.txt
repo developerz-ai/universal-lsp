@@ -8,15 +8,26 @@
 cmake_minimum_required(VERSION 3.24)
 
 if(CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR)
-    project(graph-lite VERSION 0.0.1 DESCRIPTION "Embeddable property-graph library" LANGUAGES CXX)
+    project(graph-lite VERSION 0.1.0 DESCRIPTION "Embeddable property-graph library" LANGUAGES CXX)
     set(CMAKE_CXX_STANDARD 20)
     set(CMAKE_CXX_STANDARD_REQUIRED ON)
-    add_library(ulsp_warnings INTERFACE)
-    add_library(ulsp_sanitizers INTERFACE)
 endif()
 
 # Versioned independently of the LSP engine, per docs/spec.md §2.
-set(GRAPH_LITE_VERSION 0.0.1)
+set(GRAPH_LITE_VERSION 0.1.0)
+
+# ulsp_warnings / ulsp_sanitizers are this repo's shared INTERFACE targets. The
+# root build defines the real ones (cmake/CompilerWarnings.cmake,
+# cmake/Sanitizers.cmake) BEFORE add_subdirectory(graph-lite), so these guarded
+# fallbacks are no-ops in-repo; a foreign parent that vendors this directory
+# defines neither target, and without the fallbacks its configure would fail at
+# target_link_libraries below. Proven on every PR by the standalone CI job.
+if(NOT TARGET ulsp_warnings)
+    add_library(ulsp_warnings INTERFACE)
+endif()
+if(NOT TARGET ulsp_sanitizers)
+    add_library(ulsp_sanitizers INTERFACE)
+endif()
 
 # The public surface is C (graph-lite.h); graph-lite.hpp is header-only
 # ergonomics over it and exports nothing. Sources may be C++ internally — the ABI

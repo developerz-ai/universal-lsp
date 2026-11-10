@@ -47,6 +47,7 @@ graph_lite_status build_walk(const graph_lite_graph& graph, graph_lite_id start,
         return GRAPH_LITE_ERR_NOT_FOUND;
 
     std::unordered_set<graph_lite_id> discovered;
+    std::unordered_set<graph_lite_id> depth_blocked;
     std::vector<Work> work;
     discovered.insert(start);
     if (max_results == 0) {
@@ -98,7 +99,11 @@ graph_lite_status build_walk(const graph_lite_graph& graph, graph_lite_id start,
                 return status;
             if (filter_node_tag != 0 && candidate_node_tag != node_tag)
                 continue;
-            if (current.depth >= max_depth || admitted >= max_results) {
+            if (current.depth >= max_depth) {
+                depth_blocked.insert(candidate);
+                continue;
+            }
+            if (admitted >= max_results) {
                 traversal.partial = true;
                 continue;
             }
@@ -107,6 +112,9 @@ graph_lite_status build_walk(const graph_lite_graph& graph, graph_lite_id start,
             work.push_back({candidate, current.depth + 1});
         }
     }
+    for (const graph_lite_id candidate : depth_blocked)
+        if (!discovered.contains(candidate))
+            traversal.partial = true;
     return GRAPH_LITE_OK;
 }
 

@@ -77,5 +77,7 @@ plugins live here only because they ship with the engine.
 
 ## Reporting
 
-Bugs and features: the [issue templates](.github/ISSUE_TEMPLATE). Security issues:
+Bugs and features: the [bug report](.github/ISSUE_TEMPLATE/bug.yml),
+[feature request](.github/ISSUE_TEMPLATE/feature.yml) and
+[language plugin](.github/ISSUE_TEMPLATE/language-plugin.yml) templates. Security issues:
 **do not** open an issue — see [`SECURITY.md`](SECURITY.md).

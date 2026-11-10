@@ -22,10 +22,21 @@
 #include "graph-lite.h" // graph_lite_id, graph_lite_status — the ABI spellings
 
 #include <cstdint>
+#include <string>
 #include <unordered_map>
+#include <utility>
+#include <variant>
 #include <vector>
 
 namespace graph_lite::internal {
+
+// Property values are one of the four ABI value kinds; keys are std::string.
+// Tables are keyed by owner id in the owner's own id space. Defined here — not
+// in model.cpp — because the handle owns the tables, and the handle is completed
+// at the bottom of this file.
+using PropertyValue = std::variant<int64_t, double, bool, std::string>;
+using PropertyMap = std::unordered_map<std::string, PropertyValue>;
+using PropertyTable = std::unordered_map<graph_lite_id, PropertyMap>;
 
 // A node's slice of one pool: cells [begin, begin + cap), the first len live.
 struct Run {
@@ -121,7 +132,23 @@ public:
     graph_lite_status edge_add(graph_lite_id from, graph_lite_id to, uint64_t type,
                                graph_lite_id* out_id);
     graph_lite_status edge_remove(graph_lite_id id);
-    graph_lite_status edge_type(graph_lite_id id, uint64_t* out_type) const;
+
+    // Endpoints and tag of one edge. Any out pointer may be null.
+    graph_lite_status edge_info(graph_lite_id id, graph_lite_id* from, graph_lite_id* to,
+                                uint64_t* out_type) const;
+
+    // Edge-id listing, main's model contract (unlike the neighbor listing
+    // below): *out_count is always the required size, cap below it fails
+    // BUFFER_TOO_SMALL, buffer == NULL with cap == 0 is the size query, and
+    // ids come back ascending. Does not allocate.
+    graph_lite_status out_edge_ids(graph_lite_id id, graph_lite_id* buffer, uint64_t capacity,
+                                   uint64_t* out_count) const;
+    graph_lite_status in_edge_ids(graph_lite_id id, graph_lite_id* buffer, uint64_t capacity,
+                                  uint64_t* out_count) const;
+
+    // Existence probes for the seam layer (e.g. has_owner for properties).
+    bool has_node(graph_lite_id id) const;
+    bool has_edge(graph_lite_id id) const;
 
     graph_lite_status out_degree(graph_lite_id id, uint64_t* out_degree) const;
     graph_lite_status in_degree(graph_lite_id id, uint64_t* out_degree) const;
@@ -156,6 +183,10 @@ private:
                                      graph_lite_id* buffer, uint64_t capacity,
                                      uint64_t* out_count) const;
 
+    // Edge-id twin of copy_neighbors, with the model's contract instead.
+    graph_lite_status copy_edge_ids(const Run& run, const SlotPool& pool, graph_lite_id* buffer,
+                                    uint64_t capacity, uint64_t* out_count) const;
+
     std::vector<NodeRec> nodes_;                             // dense; slot == position
     std::vector<EdgeRec> edges_;                             // dense; slot == position
     std::unordered_map<graph_lite_id, uint64_t> node_index_; // id -> slot
@@ -169,9 +200,26 @@ private:
 } // namespace graph_lite::internal
 
 // Completes the handle typedef'd in graph-lite.h. The C header deliberately
-// leaves it opaque — no binding may size or depend on this layout.
+// leaves it opaque — no binding may size or depend on this layout. Adjacency
+// lives in the store; property tables live beside it, keyed by owner id, so a
+// walk of the adjacency never touches property storage
+// (docs/graph-lite/data-model.md).
 struct graph_lite_graph {
     graph_lite::internal::Store store;
+    graph_lite::internal::PropertyTable node_properties;
+    graph_lite::internal::PropertyTable edge_properties;
+
+    graph_lite::internal::PropertyTable& properties(graph_lite_kind kind) {
+        return kind == GRAPH_LITE_NODE ? node_properties : edge_properties;
+    }
+
+    const graph_lite::internal::PropertyTable& properties(graph_lite_kind kind) const {
+        return kind == GRAPH_LITE_NODE ? node_properties : edge_properties;
+    }
+
+    bool has_owner(graph_lite_kind kind, graph_lite_id id) const {
+        return kind == GRAPH_LITE_NODE ? store.has_node(id) : store.has_edge(id);
+    }
 };
 
 #endif // GRAPH_LITE_STORE_HPP

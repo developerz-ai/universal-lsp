@@ -20,15 +20,15 @@ namespace {
 
 using Id = graph_lite_id;
 
-Id expect_node_add(graph_lite_graph* g, uint64_t type) {
+Id expect_node_add(graph_lite_graph* g, graph_lite_tag tag) {
     Id id = 0;
-    EXPECT_EQ(graph_lite_node_add(g, type, &id), GRAPH_LITE_OK);
+    EXPECT_EQ(graph_lite_add_node(g, tag, &id), GRAPH_LITE_OK);
     return id;
 }
 
-Id expect_edge_add(graph_lite_graph* g, Id from, Id to, uint64_t type) {
+Id expect_edge_add(graph_lite_graph* g, Id from, Id to, graph_lite_tag tag) {
     Id id = 0;
-    EXPECT_EQ(graph_lite_edge_add(g, from, to, type, &id), GRAPH_LITE_OK);
+    EXPECT_EQ(graph_lite_add_edge(g, from, to, tag, &id), GRAPH_LITE_OK);
     return id;
 }
 
@@ -125,21 +125,19 @@ struct Shadow {
 // The whole-store invariant check: counts, degrees, both neighbor directions,
 // per-edge liveness, and edge count == summed degree in each direction.
 ::testing::AssertionResult matches_store(const graph_lite_graph* g, const Shadow& s) {
-    uint64_t nodes = 0;
-    uint64_t edges = 0;
-    if (graph_lite_graph_node_count(g, &nodes) != GRAPH_LITE_OK || nodes != s.node_types.size())
+    if (graph_lite_node_count(g) != s.node_types.size())
         return ::testing::AssertionFailure() << "node count mismatch";
-    if (graph_lite_graph_edge_count(g, &edges) != GRAPH_LITE_OK || edges != s.edges.size())
+    if (graph_lite_edge_count(g) != s.edges.size())
         return ::testing::AssertionFailure() << "edge count mismatch";
 
     uint64_t out_sum = 0;
     uint64_t in_sum = 0;
     for (const auto& entry : s.node_types) {
         const Id id = entry.first;
-        uint64_t got_type = 0;
+        graph_lite_tag got_tag = 0;
         uint64_t out_deg = 0;
         uint64_t in_deg = 0;
-        if (graph_lite_node_type(g, id, &got_type) != GRAPH_LITE_OK || got_type != entry.second)
+        if (graph_lite_node_tag(g, id, &got_tag) != GRAPH_LITE_OK || got_tag != entry.second)
             return ::testing::AssertionFailure() << "type mismatch for id " << id;
         if (graph_lite_node_out_degree(g, id, &out_deg) != GRAPH_LITE_OK ||
             out_deg != s.out.at(id).size())
@@ -156,12 +154,13 @@ struct Shadow {
         if (!res)
             return res;
     }
-    if (out_sum != edges || in_sum != edges)
-        return ::testing::AssertionFailure() << "edge count " << edges << " != summed degrees";
+    if (out_sum != s.edges.size() || in_sum != s.edges.size())
+        return ::testing::AssertionFailure()
+               << "edge count " << s.edges.size() << " != summed degrees";
     for (const auto& entry : s.edges) {
-        uint64_t got_type = 0;
-        if (graph_lite_edge_type(g, entry.first, &got_type) != GRAPH_LITE_OK ||
-            got_type != entry.second.type)
+        graph_lite_tag got_tag = 0;
+        if (graph_lite_edge_info(g, entry.first, nullptr, nullptr, &got_tag) != GRAPH_LITE_OK ||
+            got_tag != entry.second.type)
             return ::testing::AssertionFailure() << "edge type mismatch for id " << entry.first;
     }
     return ::testing::AssertionSuccess();
@@ -170,7 +169,8 @@ struct Shadow {
 class StoreTest : public ::testing::Test {
 protected:
     void SetUp() override {
-        graph_ = graph_lite_graph_create();
+        const graph_lite_status created = graph_lite_graph_create(&graph_);
+        ASSERT_EQ(created, GRAPH_LITE_OK);
         ASSERT_NE(graph_, nullptr);
     }
 
@@ -180,11 +180,8 @@ protected:
 };
 
 TEST_F(StoreTest, EmptyStoreAnswers) {
-    uint64_t count = 99;
-    ASSERT_EQ(graph_lite_graph_node_count(graph_, &count), GRAPH_LITE_OK);
-    EXPECT_EQ(count, 0u);
-    ASSERT_EQ(graph_lite_graph_edge_count(graph_, &count), GRAPH_LITE_OK);
-    EXPECT_EQ(count, 0u);
+    EXPECT_EQ(graph_lite_node_count(graph_), 0u);
+    EXPECT_EQ(graph_lite_edge_count(graph_), 0u);
     graph_lite_graph_destroy(nullptr); // must be a no-op
 }
 
@@ -195,18 +192,18 @@ TEST_F(StoreTest, NodeLifecycleAndMonotonicIds) {
     EXPECT_GT(b, a);
     EXPECT_GT(c, b);
 
-    uint64_t type = 0;
-    ASSERT_EQ(graph_lite_node_type(graph_, b, &type), GRAPH_LITE_OK);
-    EXPECT_EQ(type, 20u);
+    graph_lite_tag tag = 0;
+    ASSERT_EQ(graph_lite_node_tag(graph_, b, &tag), GRAPH_LITE_OK);
+    EXPECT_EQ(tag, 20u);
 
-    ASSERT_EQ(graph_lite_node_remove(graph_, b), GRAPH_LITE_OK);
-    EXPECT_EQ(graph_lite_node_type(graph_, b, &type), GRAPH_LITE_ERR_NOT_FOUND);
+    ASSERT_EQ(graph_lite_remove_node(graph_, b), GRAPH_LITE_OK);
+    EXPECT_EQ(graph_lite_node_tag(graph_, b, &tag), GRAPH_LITE_ERR_NOT_FOUND);
     const Id fresh = expect_node_add(graph_, 40);
     EXPECT_GT(fresh, c); // the freed id never comes back
 
     // A missing endpoint fails the edge and changes nothing.
     Id edge = 0;
-    EXPECT_EQ(graph_lite_edge_add(graph_, a, b, 1, &edge), GRAPH_LITE_ERR_NOT_FOUND);
+    EXPECT_EQ(graph_lite_add_edge(graph_, a, b, 1, &edge), GRAPH_LITE_ERR_NOT_FOUND);
     EXPECT_EQ(edge, 0u);
 }
 
@@ -246,16 +243,17 @@ TEST_F(StoreTest, DegreesAndNeighborsBothDirections) {
     const Id loop = expect_edge_add(graph_, a, a, 14);
     ASSERT_EQ(graph_lite_node_out_degree(graph_, a, &deg), GRAPH_LITE_OK);
     EXPECT_EQ(deg, 4u);
-    ASSERT_EQ(graph_lite_edge_remove(graph_, loop), GRAPH_LITE_OK);
+    ASSERT_EQ(graph_lite_remove_edge(graph_, loop), GRAPH_LITE_OK);
     ASSERT_EQ(graph_lite_node_in_degree(graph_, a, &deg), GRAPH_LITE_OK);
     EXPECT_EQ(deg, 0u);
 
-    ASSERT_EQ(graph_lite_edge_remove(graph_, e1), GRAPH_LITE_OK);
+    ASSERT_EQ(graph_lite_remove_edge(graph_, e1), GRAPH_LITE_OK);
     ASSERT_EQ(graph_lite_node_out_degree(graph_, a, &deg), GRAPH_LITE_OK);
     EXPECT_EQ(deg, 2u); // self-loop and e1 are gone
     ASSERT_EQ(graph_lite_node_in_degree(graph_, b, &deg), GRAPH_LITE_OK);
     EXPECT_EQ(deg, 1u);
-    EXPECT_EQ(graph_lite_edge_type(graph_, e1, &deg), GRAPH_LITE_ERR_NOT_FOUND);
+    EXPECT_EQ(graph_lite_edge_info(graph_, e1, nullptr, nullptr, nullptr),
+              GRAPH_LITE_ERR_NOT_FOUND);
 }
 
 TEST_F(StoreTest, BufferTooSmallLeavesBufferUntouched) {
@@ -302,35 +300,33 @@ TEST_F(StoreTest, NullAndUnknownArgumentsGetDistinctCodes) {
     uint64_t v = 0;
     Id id = 0;
 
-    EXPECT_EQ(graph_lite_graph_node_count(nullptr, &v), GRAPH_LITE_ERR_INVALID_ARGUMENT);
-    EXPECT_EQ(graph_lite_graph_edge_count(nullptr, &v), GRAPH_LITE_ERR_INVALID_ARGUMENT);
     EXPECT_EQ(graph_lite_graph_memory_usage(nullptr, &v), GRAPH_LITE_ERR_INVALID_ARGUMENT);
-    EXPECT_EQ(graph_lite_node_add(nullptr, 1, &id), GRAPH_LITE_ERR_INVALID_ARGUMENT);
-    EXPECT_EQ(graph_lite_node_remove(nullptr, 1), GRAPH_LITE_ERR_INVALID_ARGUMENT);
-    EXPECT_EQ(graph_lite_node_type(nullptr, 1, &v), GRAPH_LITE_ERR_INVALID_ARGUMENT);
+    EXPECT_EQ(graph_lite_add_node(nullptr, 1, &id), GRAPH_LITE_ERR_INVALID_ARGUMENT);
+    EXPECT_EQ(graph_lite_remove_node(nullptr, 1), GRAPH_LITE_ERR_INVALID_ARGUMENT);
+    EXPECT_EQ(graph_lite_node_tag(nullptr, 1, nullptr), GRAPH_LITE_ERR_INVALID_ARGUMENT);
     EXPECT_EQ(graph_lite_node_out_degree(nullptr, 1, &v), GRAPH_LITE_ERR_INVALID_ARGUMENT);
     EXPECT_EQ(graph_lite_node_out_neighbors(nullptr, 1, nullptr, 0, &v),
               GRAPH_LITE_ERR_INVALID_ARGUMENT);
-    EXPECT_EQ(graph_lite_edge_add(nullptr, 1, 1, 1, &id), GRAPH_LITE_ERR_INVALID_ARGUMENT);
+    EXPECT_EQ(graph_lite_add_edge(nullptr, 1, 1, 1, &id), GRAPH_LITE_ERR_INVALID_ARGUMENT);
 
     // Valid handle, missing out-parameter — still INVALID_ARGUMENT, still first.
-    EXPECT_EQ(graph_lite_graph_node_count(graph_, nullptr), GRAPH_LITE_ERR_INVALID_ARGUMENT);
-    EXPECT_EQ(graph_lite_node_add(graph_, 1, nullptr), GRAPH_LITE_ERR_INVALID_ARGUMENT);
-    EXPECT_EQ(graph_lite_node_type(graph_, 1, nullptr), GRAPH_LITE_ERR_INVALID_ARGUMENT);
-    EXPECT_EQ(graph_lite_edge_add(graph_, 1, 1, 1, nullptr), GRAPH_LITE_ERR_INVALID_ARGUMENT);
+    EXPECT_EQ(graph_lite_add_node(graph_, 1, nullptr), GRAPH_LITE_ERR_INVALID_ARGUMENT);
+    EXPECT_EQ(graph_lite_node_tag(graph_, 1, nullptr), GRAPH_LITE_ERR_INVALID_ARGUMENT);
+    EXPECT_EQ(graph_lite_add_edge(graph_, 1, 1, 1, nullptr), GRAPH_LITE_ERR_INVALID_ARGUMENT);
 
     // Valid call shape, unknown identity — NOT_FOUND, a different decision.
     const Id unknown = 1000000;
-    EXPECT_EQ(graph_lite_node_type(graph_, unknown, &v), GRAPH_LITE_ERR_NOT_FOUND);
+    EXPECT_EQ(graph_lite_node_tag(graph_, unknown, &v), GRAPH_LITE_ERR_NOT_FOUND);
     EXPECT_EQ(graph_lite_node_out_degree(graph_, unknown, &v), GRAPH_LITE_ERR_NOT_FOUND);
     EXPECT_EQ(graph_lite_node_out_neighbors(graph_, unknown, nullptr, 0, &v),
               GRAPH_LITE_ERR_NOT_FOUND);
-    EXPECT_EQ(graph_lite_node_remove(graph_, unknown), GRAPH_LITE_ERR_NOT_FOUND);
-    EXPECT_EQ(graph_lite_edge_type(graph_, unknown, &v), GRAPH_LITE_ERR_NOT_FOUND);
-    EXPECT_EQ(graph_lite_edge_remove(graph_, unknown), GRAPH_LITE_ERR_NOT_FOUND);
+    EXPECT_EQ(graph_lite_remove_node(graph_, unknown), GRAPH_LITE_ERR_NOT_FOUND);
+    EXPECT_EQ(graph_lite_edge_info(graph_, unknown, nullptr, nullptr, nullptr),
+              GRAPH_LITE_ERR_NOT_FOUND);
+    EXPECT_EQ(graph_lite_remove_edge(graph_, unknown), GRAPH_LITE_ERR_NOT_FOUND);
     const Id a = expect_node_add(graph_, 1);
-    EXPECT_EQ(graph_lite_edge_add(graph_, unknown, a, 1, &id), GRAPH_LITE_ERR_NOT_FOUND);
-    EXPECT_EQ(graph_lite_edge_add(graph_, a, unknown, 1, &id), GRAPH_LITE_ERR_NOT_FOUND);
+    EXPECT_EQ(graph_lite_add_edge(graph_, unknown, a, 1, &id), GRAPH_LITE_ERR_NOT_FOUND);
+    EXPECT_EQ(graph_lite_add_edge(graph_, a, unknown, 1, &id), GRAPH_LITE_ERR_NOT_FOUND);
 
     // Distinct reasons stay distinct values — the numbers are ABI.
     EXPECT_NE(GRAPH_LITE_OK, GRAPH_LITE_ERR_INVALID_ARGUMENT);
@@ -365,13 +361,13 @@ TEST_F(StoreTest, NodeRemovalCascadesBothDirections) {
         shadow.add_edge(hub_edges[i], ends[i][0], ends[i][1], etypes[i]);
 
     shadow.remove_node(hub);
-    ASSERT_EQ(graph_lite_node_remove(graph_, hub), GRAPH_LITE_OK);
+    ASSERT_EQ(graph_lite_remove_node(graph_, hub), GRAPH_LITE_OK);
     ASSERT_TRUE(matches_store(graph_, shadow));
 
     // Every incident edge id is unreadable, from either side, forever.
     for (const Id eid : hub_edges) {
-        uint64_t type = 0;
-        EXPECT_EQ(graph_lite_edge_type(graph_, eid, &type), GRAPH_LITE_ERR_NOT_FOUND)
+        EXPECT_EQ(graph_lite_edge_info(graph_, eid, nullptr, nullptr, nullptr),
+                  GRAPH_LITE_ERR_NOT_FOUND)
             << "edge id " << eid;
     }
 }
@@ -394,20 +390,16 @@ TEST_F(StoreTest, IdsAreNeverReused) {
         ASSERT_GT(e1, max_edge);
         ASSERT_GT(e2, e1);
         max_edge = e2;
-        ASSERT_EQ(graph_lite_node_remove(graph_, n1), GRAPH_LITE_OK); // cascades e1
-        ASSERT_EQ(graph_lite_edge_remove(graph_, e2), GRAPH_LITE_OK);
+        ASSERT_EQ(graph_lite_remove_node(graph_, n1), GRAPH_LITE_OK); // cascades e1
+        ASSERT_EQ(graph_lite_remove_edge(graph_, e2), GRAPH_LITE_OK);
     }
     const Id fresh = expect_node_add(graph_, 9);
     ASSERT_GT(fresh, max_node);
     const Id fresh_edge = expect_edge_add(graph_, fresh, survivor, 9);
     ASSERT_GT(fresh_edge, max_edge);
 
-    uint64_t nodes = 0;
-    uint64_t edges = 0;
-    ASSERT_EQ(graph_lite_graph_node_count(graph_, &nodes), GRAPH_LITE_OK);
-    ASSERT_EQ(graph_lite_graph_edge_count(graph_, &edges), GRAPH_LITE_OK);
-    EXPECT_EQ(nodes, 21u);
-    EXPECT_EQ(edges, 1u);
+    EXPECT_EQ(graph_lite_node_count(graph_), 21u);
+    EXPECT_EQ(graph_lite_edge_count(graph_), 1u);
 }
 
 TEST_F(StoreTest, MutationChurnMatchesShadowModel) {
@@ -441,7 +433,7 @@ TEST_F(StoreTest, MutationChurnMatchesShadowModel) {
             const Id id = live_edges[at];
             live_edges[at] = live_edges.back();
             live_edges.pop_back();
-            ASSERT_EQ(graph_lite_edge_remove(graph_, id), GRAPH_LITE_OK);
+            ASSERT_EQ(graph_lite_remove_edge(graph_, id), GRAPH_LITE_OK);
             shadow.remove_edge(id);
         } else {
             const size_t at = static_cast<size_t>(rng() % live_nodes.size());
@@ -459,7 +451,7 @@ TEST_F(StoreTest, MutationChurnMatchesShadowModel) {
                 ASSERT_NE(it, live_edges.end());
                 live_edges.erase(it);
             }
-            ASSERT_EQ(graph_lite_node_remove(graph_, id), GRAPH_LITE_OK);
+            ASSERT_EQ(graph_lite_remove_node(graph_, id), GRAPH_LITE_OK);
             shadow.remove_node(id);
         }
         ASSERT_TRUE(matches_store(graph_, shadow)) << "diverged after operation " << op;
@@ -473,8 +465,8 @@ TEST(HppGraphWrapper, RoundTripAndMove) {
     const Id e = g.add_edge(a, b, 3);
     EXPECT_EQ(g.node_count(), 2u);
     EXPECT_EQ(g.edge_count(), 1u);
-    EXPECT_EQ(g.node_type(a), 1u);
-    EXPECT_EQ(g.edge_type(e), 3u);
+    EXPECT_EQ(g.node_tag(a), 1u);
+    EXPECT_EQ(g.edge_tag(e), 3u);
     EXPECT_EQ(g.out_degree(a), 1u);
     EXPECT_GT(g.memory_usage(), 0u);
 

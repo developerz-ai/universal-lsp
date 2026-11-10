@@ -88,9 +88,9 @@ int main() {
     std::vector<Row> rows;
     rows.reserve(5);
 
-    graph_lite_graph* g = graph_lite_graph_create();
-    if (g == nullptr) {
-        std::printf("bench aborted: create returned NULL\n");
+    graph_lite_graph* g = nullptr;
+    if (graph_lite_graph_create(&g) != GRAPH_LITE_OK || g == nullptr) {
+        std::printf("bench aborted: create returned OOM\n");
         return 1;
     }
     std::vector<graph_lite_id> live;
@@ -102,13 +102,13 @@ int main() {
         const auto t0 = Clock::now();
         for (uint64_t i = 0; i < kNodes; ++i) {
             graph_lite_id id = 0;
-            must_ok(graph_lite_node_add(g, rng() % 16, &id), "node_add");
+            must_ok(graph_lite_add_node(g, rng() % 16, &id), "add_node");
             live.push_back(id);
         }
         for (uint64_t e = 0; e < kEdges; ++e) {
             graph_lite_id id = 0;
-            must_ok(graph_lite_edge_add(g, pick(live, rng), pick(live, rng), rng() % 16, &id),
-                    "edge_add");
+            must_ok(graph_lite_add_edge(g, pick(live, rng), pick(live, rng), rng() % 16, &id),
+                    "add_edge");
         }
         ms = elapsed_ms(t0);
         uint64_t bytes = 0;
@@ -169,21 +169,21 @@ int main() {
         // cursor, so every second entry goes without reshuffling the rest.
         for (size_t i = live.size(); i >= 2; i -= 2) {
             const graph_lite_id id = live[i - 2];
-            must_ok(graph_lite_node_remove(g, id), "node_remove");
+            must_ok(graph_lite_remove_node(g, id), "remove_node");
             live[i - 2] = live.back();
             live.pop_back();
             ++ops;
         }
         for (uint64_t i = 0; i < kNodes / 2; ++i) {
             graph_lite_id id = 0;
-            must_ok(graph_lite_node_add(g, rng() % 16, &id), "node_add");
+            must_ok(graph_lite_add_node(g, rng() % 16, &id), "add_node");
             live.push_back(id);
             ++ops;
         }
         for (uint64_t e = 0; e < kEdges / 2; ++e) {
             graph_lite_id id = 0;
-            must_ok(graph_lite_edge_add(g, pick(live, rng), pick(live, rng), rng() % 16, &id),
-                    "edge_add");
+            must_ok(graph_lite_add_edge(g, pick(live, rng), pick(live, rng), rng() % 16, &id),
+                    "add_edge");
             ++ops;
         }
         rows.push_back(make_row("churn", ops, elapsed_ms(t0), 0, 0, 0));
@@ -195,8 +195,8 @@ int main() {
         uint64_t nodes = 0;
         uint64_t edges = 0;
         must_ok(graph_lite_graph_memory_usage(g, &bytes), "memory_usage");
-        must_ok(graph_lite_graph_node_count(g, &nodes), "node_count");
-        must_ok(graph_lite_graph_edge_count(g, &edges), "edge_count");
+        nodes = graph_lite_node_count(g);
+        edges = graph_lite_edge_count(g);
         rows.push_back(make_row("footprint", 0, 0.0, bytes, nodes, edges));
         g_sink += bytes;
     }

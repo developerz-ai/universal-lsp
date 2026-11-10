@@ -164,6 +164,10 @@ graph_lite_status Store::node_type(graph_lite_id id, uint64_t* out_type) const {
     return GRAPH_LITE_OK;
 }
 
+bool Store::has_node(graph_lite_id id) const {
+    return node_index_.find(id) != node_index_.end();
+}
+
 // ---------------------------------------------------------------------------
 // Store — edges
 // ---------------------------------------------------------------------------
@@ -223,12 +227,22 @@ graph_lite_status Store::edge_remove(graph_lite_id id) {
     return GRAPH_LITE_OK;
 }
 
-graph_lite_status Store::edge_type(graph_lite_id id, uint64_t* out_type) const {
-    assert(out_type != nullptr && "null out_type is rejected at the C seam");
+bool Store::has_edge(graph_lite_id id) const {
+    return edge_index_.find(id) != edge_index_.end();
+}
+
+graph_lite_status Store::edge_info(graph_lite_id id, graph_lite_id* from, graph_lite_id* to,
+                                   uint64_t* out_type) const {
     const auto it = edge_index_.find(id);
     if (it == edge_index_.end())
         return GRAPH_LITE_ERR_NOT_FOUND;
-    *out_type = edges_[static_cast<size_t>(it->second)].type;
+    const EdgeRec& rec = edges_[static_cast<size_t>(it->second)];
+    if (from)
+        *from = rec.from;
+    if (to)
+        *to = rec.to;
+    if (out_type)
+        *out_type = rec.type;
     return GRAPH_LITE_OK;
 }
 
@@ -328,6 +342,45 @@ graph_lite_status Store::copy_neighbors(const Run& run, const SlotPool& pool, bo
     }
     *out_count = run.len;
     return GRAPH_LITE_OK;
+}
+
+// The model's edge-id listing contract (graph_lite_out_edges / in_edges):
+// *out_count is always the required size, then cap decides OK vs
+// BUFFER_TOO_SMALL, so buffer == NULL with cap == 0 is the size query and the
+// buffer is only written when it fits. The contract pins ASCENDING ids, but a
+// removal reorders cells inside a run, so the copy is sorted in place — a
+// caller-owned buffer, no allocation.
+graph_lite_status Store::copy_edge_ids(const Run& run, const SlotPool& pool, graph_lite_id* buffer,
+                                       uint64_t capacity, uint64_t* out_count) const {
+    assert((buffer != nullptr || capacity == 0) &&
+           "null buffer with capacity is rejected at the C seam");
+    *out_count = run.len;
+    if (run.len > capacity)
+        return GRAPH_LITE_ERR_BUFFER_TOO_SMALL;
+    for (uint64_t i = 0; i < run.len; ++i)
+        buffer[i] = edges_[static_cast<size_t>(pool.cell(run, i))].id;
+    std::sort(buffer, buffer + run.len);
+    return GRAPH_LITE_OK;
+}
+
+graph_lite_status Store::out_edge_ids(graph_lite_id id, graph_lite_id* buffer, uint64_t capacity,
+                                      uint64_t* out_count) const {
+    assert(out_count != nullptr && "null out_count is rejected at the C seam");
+    const auto it = node_index_.find(id);
+    if (it == node_index_.end())
+        return GRAPH_LITE_ERR_NOT_FOUND;
+    return copy_edge_ids(nodes_[static_cast<size_t>(it->second)].out, out_pool_, buffer, capacity,
+                         out_count);
+}
+
+graph_lite_status Store::in_edge_ids(graph_lite_id id, graph_lite_id* buffer, uint64_t capacity,
+                                     uint64_t* out_count) const {
+    assert(out_count != nullptr && "null out_count is rejected at the C seam");
+    const auto it = node_index_.find(id);
+    if (it == node_index_.end())
+        return GRAPH_LITE_ERR_NOT_FOUND;
+    return copy_edge_ids(nodes_[static_cast<size_t>(it->second)].in, in_pool_, buffer, capacity,
+                         out_count);
 }
 
 // ---------------------------------------------------------------------------

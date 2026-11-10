@@ -57,19 +57,15 @@ inline void check(graph_lite_status status) {
         throw Error(status);
 }
 
-/// RAII owner of a store handle. Move-only: exactly one owner, so the handle is
+/// RAII owner of a graph handle. Move-only: exactly one owner, so the handle is
 /// destroyed exactly once. Every method is the same-named C entry point through
 /// check() — no state, no extra logic, and nothing exported beyond what
 /// graph-lite.h already publishes.
 class Graph {
 public:
-    /// Creates the underlying store. Throws Error(GRAPH_LITE_ERR_OUT_OF_MEMORY)
+    /// Creates the underlying graph. Throws Error(GRAPH_LITE_ERR_OUT_OF_MEMORY)
     /// rather than smuggling a null handle into scope.
-    Graph() {
-        handle_ = graph_lite_graph_create();
-        if (handle_ == nullptr)
-            throw Error(GRAPH_LITE_ERR_OUT_OF_MEMORY);
-    }
+    Graph() { check(graph_lite_graph_create(&handle_)); }
 
     ~Graph() { graph_lite_graph_destroy(handle_); }
 
@@ -86,44 +82,85 @@ public:
         return *this;
     }
 
-    graph_lite_id add_node(uint64_t type) {
+    graph_lite_id add_node(graph_lite_tag tag) {
         graph_lite_id id = 0;
-        check(graph_lite_node_add(handle_, type, &id));
+        check(graph_lite_add_node(handle_, tag, &id));
         return id;
     }
 
-    void remove_node(graph_lite_id id) { check(graph_lite_node_remove(handle_, id)); }
+    void remove_node(graph_lite_id id) { check(graph_lite_remove_node(handle_, id)); }
 
-    uint64_t node_type(graph_lite_id id) {
-        uint64_t type = 0;
-        check(graph_lite_node_type(handle_, id, &type));
-        return type;
+    graph_lite_tag node_tag(graph_lite_id id) {
+        graph_lite_tag tag = 0;
+        check(graph_lite_node_tag(handle_, id, &tag));
+        return tag;
     }
 
-    graph_lite_id add_edge(graph_lite_id from, graph_lite_id to, uint64_t type) {
+    graph_lite_id add_edge(graph_lite_id from, graph_lite_id to, graph_lite_tag tag) {
         graph_lite_id id = 0;
-        check(graph_lite_edge_add(handle_, from, to, type, &id));
+        check(graph_lite_add_edge(handle_, from, to, tag, &id));
         return id;
     }
 
-    void remove_edge(graph_lite_id id) { check(graph_lite_edge_remove(handle_, id)); }
+    void remove_edge(graph_lite_id id) { check(graph_lite_remove_edge(handle_, id)); }
 
-    uint64_t edge_type(graph_lite_id id) {
-        uint64_t type = 0;
-        check(graph_lite_edge_type(handle_, id, &type));
-        return type;
+    graph_lite_tag edge_tag(graph_lite_id id) {
+        graph_lite_tag tag = 0;
+        check(graph_lite_edge_info(handle_, id, nullptr, nullptr, &tag));
+        return tag;
     }
 
-    uint64_t node_count() const {
-        uint64_t count = 0;
-        check(graph_lite_graph_node_count(handle_, &count));
-        return count;
+    /// The edge ids of one node's forward (or reverse) adjacency, ascending.
+    std::vector<graph_lite_id> out_edges(graph_lite_id id) const {
+        return edge_ids_(graph_lite_out_edges, id);
     }
 
-    uint64_t edge_count() const {
-        uint64_t count = 0;
-        check(graph_lite_graph_edge_count(handle_, &count));
-        return count;
+    std::vector<graph_lite_id> in_edges(graph_lite_id id) const {
+        return edge_ids_(graph_lite_in_edges, id);
+    }
+
+    std::size_t node_count() const { return graph_lite_node_count(handle_); }
+
+    std::size_t edge_count() const { return graph_lite_edge_count(handle_); }
+
+    /// The int-valued property of an owner; doubles/bools/strings have their
+    /// own spellings. Throws Error for a missing owner or key.
+    int64_t get_int(graph_lite_kind kind, graph_lite_id id, const char* key) {
+        return value_(int64_t(0), graph_lite_get_int, kind, id, key);
+    }
+
+    double get_double(graph_lite_kind kind, graph_lite_id id, const char* key) {
+        return value_(0.0, graph_lite_get_double, kind, id, key);
+    }
+
+    bool get_bool(graph_lite_kind kind, graph_lite_id id, const char* key) {
+        int value = 0;
+        check(graph_lite_get_bool(handle_, kind, id, key, &value));
+        return value != 0;
+    }
+
+    std::string get_string(graph_lite_kind kind, graph_lite_id id, const char* key) {
+        return get_string_(kind, id, key);
+    }
+
+    void set_int(graph_lite_kind kind, graph_lite_id id, const char* key, int64_t value) {
+        check(graph_lite_set_int(handle_, kind, id, key, value));
+    }
+
+    void set_double(graph_lite_kind kind, graph_lite_id id, const char* key, double value) {
+        check(graph_lite_set_double(handle_, kind, id, key, value));
+    }
+
+    void set_bool(graph_lite_kind kind, graph_lite_id id, const char* key, bool value) {
+        check(graph_lite_set_bool(handle_, kind, id, key, value));
+    }
+
+    void set_string(graph_lite_kind kind, graph_lite_id id, const char* key, const char* value) {
+        check(graph_lite_set_string(handle_, kind, id, key, value));
+    }
+
+    void remove_property(graph_lite_kind kind, graph_lite_id id, const char* key) {
+        check(graph_lite_remove_property(handle_, kind, id, key));
     }
 
     uint64_t memory_usage() const {
@@ -151,6 +188,14 @@ private:
     using DegreeFn = graph_lite_status (*)(const graph_lite_graph*, graph_lite_id, uint64_t*);
     using NeighborFn = graph_lite_status (*)(const graph_lite_graph*, graph_lite_id, graph_lite_id*,
                                              uint64_t, uint64_t*);
+    using EdgeListFn = graph_lite_status (*)(const graph_lite_graph*, graph_lite_id, graph_lite_id*,
+                                             size_t, size_t*);
+    using IntFn = graph_lite_status (*)(const graph_lite_graph*, graph_lite_kind, graph_lite_id,
+                                        const char*, int64_t*);
+    using DoubleFn = graph_lite_status (*)(const graph_lite_graph*, graph_lite_kind, graph_lite_id,
+                                           const char*, double*);
+    using BoolFn = graph_lite_status (*)(const graph_lite_graph*, graph_lite_kind, graph_lite_id,
+                                         const char*, bool*);
 
     uint64_t degree_(DegreeFn degree, graph_lite_id id) const {
         uint64_t value = 0;
@@ -165,6 +210,33 @@ private:
         std::vector<graph_lite_id> result(count);
         if (count > 0)
             check(neighbors(handle_, id, result.data(), count, &count));
+        return result;
+    }
+
+    std::vector<graph_lite_id> edge_ids_(EdgeListFn edges, graph_lite_id id) const {
+        size_t count = 0;
+        check(edges(handle_, id, nullptr, 0, &count)); // the how-many probe
+        std::vector<graph_lite_id> result(count);
+        if (count > 0)
+            check(edges(handle_, id, result.data(), result.size(), &count));
+        return result;
+    }
+
+    template <typename T, typename GetFn>
+    T value_(T fallback, GetFn get, graph_lite_kind kind, graph_lite_id id, const char* key) {
+        T value = fallback;
+        check(get(handle_, kind, id, key, &value));
+        return value;
+    }
+
+    // Strings come back through a caller-owned buffer: the size query returns
+    // the length excluding the NUL, so the copy needs len + 1 bytes of room.
+    std::string get_string_(graph_lite_kind kind, graph_lite_id id, const char* key) {
+        size_t len = 0;
+        check(graph_lite_get_string(handle_, kind, id, key, nullptr, 0, &len));
+        std::string result(len + 1, '\0');
+        check(graph_lite_get_string(handle_, kind, id, key, result.data(), result.size(), &len));
+        result.resize(len);
         return result;
     }
 

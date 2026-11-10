@@ -11,8 +11,18 @@ ulsp_add_test(graph_lite_store_test
     LINK    graph-lite::graph-lite)
 
 # Allocation-failure suite: a refusal at any allocation point of a mutating
-# entry point surfaces as a status code (NULL for create), never as an
+# entry point surfaces as a status code (OOM from create), never as an
 # exception escaping the C boundary.
 ulsp_add_test(graph_lite_alloc_test
     SOURCES alloc_failure_test.cpp
+    LINK    graph-lite::graph-lite)
+
+# The model and typed-property suites: same public header, store internals
+# invisible.
+ulsp_add_test(graph_lite_model_test
+    SOURCES model_test.cpp
+    LINK    graph-lite::graph-lite)
+
+ulsp_add_test(graph_lite_model_properties_test
+    SOURCES model_properties_test.cpp
     LINK    graph-lite::graph-lite)

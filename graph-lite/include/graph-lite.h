@@ -30,11 +30,12 @@
  *   discipline — see scripts/lint/graph-lite-vocabulary.ts.
  *
  * STATUS
- *   Build phase 1 (v0.0.1-wip): the typed node/edge store ships behind this ABI
- *   — create/destroy, add/remove, counts, degrees and neighbor buffers, with
- *   stable, never-reused ids and both adjacency directions materialized.
- *   Properties, traversal and persistence are later phases; they extend this
- *   contract additively, never by changing it.
+ *   Model phase (v0.0.1-wip): the in-memory node/edge model with typed
+ *   properties ships behind this ABI — create/destroy, add/remove, counts,
+ *   adjacency listing and property storage — with stable, never-reused ids and
+ *   both adjacency directions materialized contiguously (see benchmark.md).
+ *   Traversal, CSR-backed storage and the persistence format are still design —
+ *   see docs/graph-lite/README.md.
  *
  * Licensed under the MIT License. See graph-lite/LICENSE — deliberately more
  * permissive than the engine that consumes it.
@@ -50,6 +51,9 @@
 #define GRAPH_LITE_VERSION_MINOR 0
 #define GRAPH_LITE_VERSION_PATCH 1
 #define GRAPH_LITE_VERSION_STRING "0.0.1"
+
+#include <stddef.h>
+#include <stdint.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -96,7 +100,7 @@ const char* graph_lite_version_string(void);
 const char* graph_lite_status_string(graph_lite_status status);
 
 /*
- * The store — build phase 1 of docs/graph-lite/README.md.
+ * The model — the node/edge surface of docs/graph-lite/README.md.
  *
  * HANDLES  graph_lite_graph is opaque and caller-owned: created with
  *          graph_lite_graph_create(), released exactly once with
@@ -104,68 +108,164 @@ const char* graph_lite_status_string(graph_lite_status status);
  *          stated; anything else that cannot proceed fails with
  *          GRAPH_LITE_ERR_INVALID_ARGUMENT.
  *
- * IDS      graph_lite_id is uint64_t, issued monotonically per store and never
- *          reused after a delete: an id a caller holds can only ever mean the
- *          same entity or nothing at all. Ids start at 1; 0 never names an
- *          entity, so bindings may keep using it as "no id".
+ * Ids are 64-bit and 0 is never valid (GRAPH_LITE_INVALID_ID). Node ids and edge
+ * ids are SEPARATE spaces, each issued from its own counter starting at 1. A
+ * counter never goes down and an id is never reused after removal, so an id a
+ * caller holds either names the same thing it always did or is NOT_FOUND.
  *
- * BUFFERS  Caller-owned, explicitly sized; no query allocates. When a neighbor
- *          query finds more neighbors than capacity, it fails with
- *          GRAPH_LITE_ERR_BUFFER_TOO_SMALL, stores the required count in
- *          *out_count, and leaves the buffer untouched.
+ * A tag is an opaque 64-bit value the caller defines. It is compared with ==
+ * and nothing else: no registry, no reserved value (0 and UINT64_MAX are
+ * ordinary tags), no validation.
  *
  * OOM      A mutating call that fails with GRAPH_LITE_ERR_OUT_OF_MEMORY never
- *          leaves the store half-written: the id it would have issued does not
- *          exist, counts name only entities the store holds, and every query
- *          answers exactly for what survived. A refused node_remove may
+ *          leaves the graph half-written: the id it would have issued does not
+ *          exist, counts name only entities the graph holds, and every query
+ *          answers exactly for what survived. A refused remove_node may
  *          already have drained its incident edges — that drain is
  *          allocation-free and commits first.
  *
- * THREADS  Single-writer. The store holds no lock; concurrent use must be
- *          serialized by the caller.
- */
+ * ------------------------------------------------------------------------ */
 
-typedef uint64_t graph_lite_id;
-
+/* Opaque handle. One graph is not safe for concurrent mutation; concurrent
+ * reads of an unmodified graph are fine. */
 typedef struct graph_lite_graph graph_lite_graph;
 
-/* Create an empty store. Returns NULL only if the allocation failed. */
-graph_lite_graph* graph_lite_graph_create(void);
+typedef uint64_t graph_lite_id;
+typedef uint64_t graph_lite_tag;
 
-/* Release a store and every id in it. NULL is allowed and does nothing. */
-void graph_lite_graph_destroy(graph_lite_graph* graph);
+#define GRAPH_LITE_INVALID_ID ((graph_lite_id)0)
 
-/* Live entity counts. */
-graph_lite_status graph_lite_graph_node_count(const graph_lite_graph* graph, uint64_t* out_count);
-graph_lite_status graph_lite_graph_edge_count(const graph_lite_graph* graph, uint64_t* out_count);
+/* Which id space an owner id belongs to, for the property entry points. */
+typedef enum graph_lite_kind {
+    GRAPH_LITE_NODE = 0,
+    GRAPH_LITE_EDGE = 1,
+    GRAPH_LITE_KIND_FORCE_INT = 0x7fffffff
+} graph_lite_kind;
 
-/* Footprint estimate: the sum of each internal container's capacity times its
- * element size (hash indices counted at bucket granularity, allocator overhead
- * ignored). For capacity planning, not accounting. */
-graph_lite_status graph_lite_graph_memory_usage(const graph_lite_graph* graph, uint64_t* out_bytes);
+/* The type of value a property currently holds. */
+typedef enum graph_lite_value_kind {
+    GRAPH_LITE_VALUE_INT = 0,
+    GRAPH_LITE_VALUE_DOUBLE = 1,
+    GRAPH_LITE_VALUE_BOOL = 2,
+    GRAPH_LITE_VALUE_STRING = 3,
+    GRAPH_LITE_VALUE_KIND_FORCE_INT = 0x7fffffff
+} graph_lite_value_kind;
 
-/* Add a node carrying the caller-defined type tag; the fresh id is written to
- * *out_id. */
-graph_lite_status graph_lite_node_add(graph_lite_graph* graph, uint64_t type,
+/* Creates an empty graph. *out is set on success only. Release with
+ * graph_lite_graph_destroy. */
+graph_lite_status graph_lite_graph_create(graph_lite_graph** out);
+
+/* Releases a graph and everything in it. NULL is accepted and ignored. */
+void graph_lite_graph_destroy(graph_lite_graph* g);
+
+/* Adds a node with the given tag; its new id is written to *out_id. */
+graph_lite_status graph_lite_add_node(graph_lite_graph* g, graph_lite_tag tag,
                                       graph_lite_id* out_id);
 
-/* Remove a node. Every incident edge, incoming and outgoing, is removed with
- * it: an edge never outlives either endpoint. */
-graph_lite_status graph_lite_node_remove(graph_lite_graph* graph, graph_lite_id id);
+/* Removes a node. Cascades: every incident edge, in either direction, is
+ * removed too, along with the properties of the node and of those edges. NOT_FOUND
+ * if the id is 0 or absent. */
+graph_lite_status graph_lite_remove_node(graph_lite_graph* g, graph_lite_id id);
 
-/* Read back the type tag a node was added with. */
-graph_lite_status graph_lite_node_type(const graph_lite_graph* graph, graph_lite_id id,
-                                       uint64_t* out_type);
+/* Reads a node's tag. NOT_FOUND if the id is 0 or absent. */
+graph_lite_status graph_lite_node_tag(const graph_lite_graph* g, graph_lite_id id,
+                                      graph_lite_tag* out_tag);
 
-/* Live edge count per direction for one node. */
+/* Adds a directed edge from -> to. NOT_FOUND if either endpoint is absent.
+ * Self-loops and parallel edges are allowed. */
+graph_lite_status graph_lite_add_edge(graph_lite_graph* g, graph_lite_id from, graph_lite_id to,
+                                      graph_lite_tag tag, graph_lite_id* out_id);
+
+/* Removes an edge and its properties. NOT_FOUND if the id is 0 or absent. */
+graph_lite_status graph_lite_remove_edge(graph_lite_graph* g, graph_lite_id id);
+
+/* Reads an edge's endpoints and tag. Each out pointer is optional (may be NULL).
+ * NOT_FOUND if the id is 0 or absent. */
+graph_lite_status graph_lite_edge_info(const graph_lite_graph* g, graph_lite_id id,
+                                       graph_lite_id* from, graph_lite_id* to, graph_lite_tag* tag);
+
+/* Number of live nodes / edges. 0 for a NULL graph. */
+size_t graph_lite_node_count(const graph_lite_graph* g);
+size_t graph_lite_edge_count(const graph_lite_graph* g);
+
+/* Lists the ids of the edges leaving / entering a node, ascending, into a
+ * caller-owned buffer of cap entries. *count is ALWAYS set to the required size;
+ * if cap < required the result is BUFFER_TOO_SMALL and nothing is promised about
+ * buf. buf may be NULL when cap == 0 (the size query). A self-loop appears in
+ * both lists. NOT_FOUND if the node is 0 or absent. */
+graph_lite_status graph_lite_out_edges(const graph_lite_graph* g, graph_lite_id node,
+                                       graph_lite_id* buf, size_t cap, size_t* count);
+graph_lite_status graph_lite_in_edges(const graph_lite_graph* g, graph_lite_id node,
+                                      graph_lite_id* buf, size_t cap, size_t* count);
+
+/* ------------------------------------------------------------------------ *
+ * Properties
+ *
+ * Owned by a node or an edge: (kind, id). Keys are NUL-terminated strings; any
+ * non-NULL string is a key, the empty string included. Setting an existing key
+ * overwrites it and may change its value kind. Removing a node or edge removes
+ * its properties.
+ *
+ * Errors: NULL pointer arguments or an unknown kind -> INVALID_ARGUMENT; a
+ * missing owner or key -> NOT_FOUND; a get_* of the wrong value kind ->
+ * INVALID_ARGUMENT.
+ * ------------------------------------------------------------------------ */
+
+graph_lite_status graph_lite_set_int(graph_lite_graph* g, graph_lite_kind kind, graph_lite_id id,
+                                     const char* key, int64_t value);
+graph_lite_status graph_lite_set_double(graph_lite_graph* g, graph_lite_kind kind, graph_lite_id id,
+                                        const char* key, double value);
+/* Any nonzero value is stored as true. */
+graph_lite_status graph_lite_set_bool(graph_lite_graph* g, graph_lite_kind kind, graph_lite_id id,
+                                      const char* key, int value);
+/* The string is copied. */
+graph_lite_status graph_lite_set_string(graph_lite_graph* g, graph_lite_kind kind, graph_lite_id id,
+                                        const char* key, const char* value);
+
+graph_lite_status graph_lite_property_kind(const graph_lite_graph* g, graph_lite_kind kind,
+                                           graph_lite_id id, const char* key,
+                                           graph_lite_value_kind* out);
+
+graph_lite_status graph_lite_get_int(const graph_lite_graph* g, graph_lite_kind kind,
+                                     graph_lite_id id, const char* key, int64_t* out);
+graph_lite_status graph_lite_get_double(const graph_lite_graph* g, graph_lite_kind kind,
+                                        graph_lite_id id, const char* key, double* out);
+/* *out is 0 or 1. */
+graph_lite_status graph_lite_get_bool(const graph_lite_graph* g, graph_lite_kind kind,
+                                      graph_lite_id id, const char* key, int* out);
+/* *len is the byte length excluding the NUL, always set on a string property.
+ * Success needs cap >= *len + 1 and NUL-terminates buf; otherwise
+ * BUFFER_TOO_SMALL. buf may be NULL when cap == 0 (the size query). */
+graph_lite_status graph_lite_get_string(const graph_lite_graph* g, graph_lite_kind kind,
+                                        graph_lite_id id, const char* key, char* buf, size_t cap,
+                                        size_t* len);
+
+graph_lite_status graph_lite_remove_property(graph_lite_graph* g, graph_lite_kind kind,
+                                             graph_lite_id id, const char* key);
+
+/* ------------------------------------------------------------------------ *
+ * Store queries (additive over the model above)
+ *
+ * Degrees and neighbor listing read the materialized adjacency directly:
+ * both directions are kept contiguous per node (benchmarked in
+ * docs/graph-lite/benchmark.md), so these are O(degree) copies. The neighbor
+ * functions list NEIGHBOR NODE ids; graph_lite_out_edges /
+ * graph_lite_in_edges above list EDGE ids. Queries allocate nothing.
+ *
+ * THREADS  Single-writer per graph. The store holds no lock; concurrent use
+ *          must be serialized by the caller (see the handle note above).
+ * ------------------------------------------------------------------------ */
+
+/* Live edge count per direction for one node. NOT_FOUND if the id is 0 or
+ * absent. */
 graph_lite_status graph_lite_node_out_degree(const graph_lite_graph* graph, graph_lite_id id,
                                              uint64_t* out_degree);
 graph_lite_status graph_lite_node_in_degree(const graph_lite_graph* graph, graph_lite_id id,
                                             uint64_t* out_degree);
 
-/* Copy neighbor ids into buffer. Order is unspecified and may change after any
- * removal; sort before comparing. buffer may be NULL only when the call would
- * not write into it: a degree-0 node succeeds with *out_count == 0, while
+/* Copy neighbor NODE ids into buffer. Order is unspecified and may change after
+ * any removal; sort before comparing. buffer may be NULL only when the call
+ * would not write into it: a degree-0 node succeeds with *out_count == 0, while
  * buffer == NULL with room for a real neighbor fails INVALID_ARGUMENT — after
  * the capacity check, so NULL buffer with capacity 0 stays the "how many?"
  * probe and fails BUFFER_TOO_SMALL. */
@@ -176,19 +276,11 @@ graph_lite_status graph_lite_node_in_neighbors(const graph_lite_graph* graph, gr
                                                graph_lite_id* buffer, uint64_t capacity,
                                                uint64_t* out_count);
 
-/* Add a directed, typed edge from -> to. There is no schema: self-loops
- * (from == to) and parallel edges are legal. If either endpoint does not exist
- * the call fails NOT_FOUND and the store is unchanged. */
-graph_lite_status graph_lite_edge_add(graph_lite_graph* graph, graph_lite_id from, graph_lite_id to,
-                                      uint64_t type, graph_lite_id* out_id);
-
-/* Remove one edge by id. Its endpoints are untouched. */
-graph_lite_status graph_lite_edge_remove(graph_lite_graph* graph, graph_lite_id id);
-
-/* Read back the type tag an edge was added with. The id of a removed edge is
- * NOT_FOUND forever — including after its endpoints are removed. */
-graph_lite_status graph_lite_edge_type(const graph_lite_graph* graph, graph_lite_id id,
-                                       uint64_t* out_type);
+/* Footprint estimate: the sum of each internal container's capacity times its
+ * element size (hash indices counted at bucket granularity, allocator overhead
+ * ignored); adjacency and property storage included. For capacity planning,
+ * not accounting. */
+graph_lite_status graph_lite_graph_memory_usage(const graph_lite_graph* graph, uint64_t* out_bytes);
 
 #ifdef __cplusplus
 } /* extern "C" */

@@ -8,9 +8,10 @@ library, no server, no query language, no runtime dependencies.
 Ruby, JavaScript, Python, Rust, Go. C++ callers get a header-only ergonomics layer
 on top; nobody else has to care that the implementation is C++.
 
-> **v0.0.1-wip.** The typed node/edge store ships behind the C ABI: contiguous
-> forward and reverse adjacency, stable ids that are never reused. BFS/DFS/path
-> traversal and persistence remain design.
+> **v0.0.1 — work in progress.** The node/edge model ships behind the C ABI as an
+> in-memory store: contiguous forward and reverse adjacency, stable ids that are
+> never reused, tags and typed properties. BFS/DFS/path traversal and persistence
+> remain design.
 
 ## Two headers, one contract
 
@@ -44,6 +45,21 @@ int major, minor, patch;
 graph_lite_version(&major, &minor, &patch);
 /* compare against GRAPH_LITE_VERSION_* to catch a header/binary mismatch at
    startup rather than as a corrupt read much later */
+```
+
+```c
+/* C — build a tiny graph. Ids are 64-bit, 0 is never valid, and an id is never
+   reused after removal. */
+graph_lite_graph* g = NULL;
+graph_lite_id a, b, e;
+
+graph_lite_graph_create(&g);
+graph_lite_add_node(g, /* tag */ 1, &a);
+graph_lite_add_node(g, /* tag */ 2, &b);
+graph_lite_add_edge(g, a, b, /* tag */ 7, &e);
+graph_lite_set_int(g, GRAPH_LITE_EDGE, e, "weight", 3);
+graph_lite_remove_node(g, b);   /* removes the edge too */
+graph_lite_graph_destroy(g);
 ```
 
 ```cpp
@@ -87,8 +103,11 @@ version of the header than the linked library knows.
 
 ## The model
 
-- **Node** — a stable id, a type tag, properties.
-- **Edge** — directed, from one id to another, a type tag, properties.
+- **Node** — a stable 64-bit id, a type tag, properties.
+- **Edge** — directed, from one id to another, a type tag, properties. Self-loops
+  and parallel edges are allowed; removing a node removes its incident edges.
+- **Properties** — int64, double, bool or string values, stored apart from the
+  adjacency lists.
 - **Type** — an opaque tag *you* define and name. The library attaches no meaning
   to any of them, holds no registry, and reserves no name.
 

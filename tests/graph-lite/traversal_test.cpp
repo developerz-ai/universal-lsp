@@ -59,6 +59,30 @@ std::vector<Id> walk(const graph_lite_graph* graph, Id start, graph_lite_walk_or
     return ids;
 }
 
+void expect_path_uses_allowed_edges(const graph_lite_graph* graph, const std::vector<Id>& path,
+                                    graph_lite_walk_direction direction, graph_lite_tag edge_tag) {
+    for (size_t index = 1; index < path.size(); ++index) {
+        const Id from = direction == GRAPH_LITE_WALK_FORWARD ? path[index - 1] : path[index];
+        const Id to = direction == GRAPH_LITE_WALK_FORWARD ? path[index] : path[index - 1];
+        bool connected = false;
+        size_t edge_count = 0;
+        ASSERT_EQ(graph_lite_out_edges(graph, from, nullptr, 0, &edge_count),
+                  GRAPH_LITE_ERR_BUFFER_TOO_SMALL);
+        std::vector<Id> edges(edge_count);
+        ASSERT_EQ(graph_lite_out_edges(graph, from, edges.data(), edges.size(), &edge_count),
+                  GRAPH_LITE_OK);
+        for (size_t edge_index = 0; edge_index < edge_count; ++edge_index) {
+            Id edge_from = 0;
+            Id edge_to = 0;
+            graph_lite_tag tag = 0;
+            ASSERT_EQ(graph_lite_edge_info(graph, edges[edge_index], &edge_from, &edge_to, &tag),
+                      GRAPH_LITE_OK);
+            connected = connected || (edge_to == to && tag == edge_tag);
+        }
+        EXPECT_TRUE(connected);
+    }
+}
+
 TEST(Traversal, BreadthFirstAndDepthFirstYieldDistinctNodes) {
     auto graph = make_graph();
     const Id a = add_node(graph.get());
@@ -243,35 +267,24 @@ TEST(Traversal, GeneratedPathsOnlyUseAllowedEdges) {
                 if ((from * 7 + to * 11 + size) % 4 == 0)
                     add_edge(graph.get(), ids[from], ids[to], (from + to) % 2);
 
-        std::vector<Id> path(size);
-        uint64_t count = 0;
-        const graph_lite_status status =
-            graph_lite_any_path(graph.get(), ids.front(), ids.back(), GRAPH_LITE_WALK_FORWARD, 0, 0,
-                                1, 1, path.data(), path.size(), &count);
-        if (status == GRAPH_LITE_ERR_NO_PATH)
-            continue;
-        ASSERT_EQ(status, GRAPH_LITE_OK);
-        ASSERT_GE(count, 1);
-        EXPECT_EQ(path.front(), ids.front());
-        EXPECT_EQ(path[count - 1], ids.back());
-        for (uint64_t index = 1; index < count; ++index) {
-            bool connected = false;
-            size_t edge_count = 0;
-            ASSERT_EQ(graph_lite_out_edges(graph.get(), path[index - 1], nullptr, 0, &edge_count),
-                      GRAPH_LITE_ERR_BUFFER_TOO_SMALL);
-            std::vector<Id> edges(edge_count);
-            ASSERT_EQ(graph_lite_out_edges(graph.get(), path[index - 1], edges.data(), edges.size(),
-                                           &edge_count),
-                      GRAPH_LITE_OK);
-            for (size_t edge_index = 0; edge_index < edge_count; ++edge_index) {
-                Id from = 0;
-                Id to = 0;
-                graph_lite_tag tag = 0;
-                ASSERT_EQ(graph_lite_edge_info(graph.get(), edges[edge_index], &from, &to, &tag),
-                          GRAPH_LITE_OK);
-                connected = connected || (to == path[index] && tag == 1);
+        for (const auto direction : {GRAPH_LITE_WALK_FORWARD, GRAPH_LITE_WALK_REVERSE}) {
+            const Id start = direction == GRAPH_LITE_WALK_FORWARD ? ids.front() : ids.back();
+            const Id target = direction == GRAPH_LITE_WALK_FORWARD ? ids.back() : ids.front();
+            for (const auto find_path : {graph_lite_any_path, graph_lite_shortest_path}) {
+                std::vector<Id> path(size);
+                uint64_t count = 0;
+                const graph_lite_status status =
+                    find_path(graph.get(), start, target, direction, 0, 0, 1, 1, path.data(),
+                              path.size(), &count);
+                if (status == GRAPH_LITE_ERR_NO_PATH)
+                    continue;
+                ASSERT_EQ(status, GRAPH_LITE_OK);
+                ASSERT_GE(count, 1);
+                path.resize(count);
+                EXPECT_EQ(path.front(), start);
+                EXPECT_EQ(path.back(), target);
+                expect_path_uses_allowed_edges(graph.get(), path, direction, 1);
             }
-            EXPECT_TRUE(connected);
         }
     }
 }

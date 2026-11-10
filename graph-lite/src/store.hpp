@@ -163,6 +163,20 @@ public:
 
     uint64_t memory_usage() const;
 
+    // Append every live id, in storage order (NOT sorted). May throw
+    // std::bad_alloc; the caller guards. Inline: store.cpp is near the file cap.
+    void collect_node_ids(std::vector<graph_lite_id>& out) const {
+        out.reserve(out.size() + nodes_.size());
+        for (const NodeRec& node : nodes_)
+            out.push_back(node.id);
+    }
+
+    void collect_edge_ids(std::vector<graph_lite_id>& out) const {
+        out.reserve(out.size() + edges_.size());
+        for (const EdgeRec& edge : edges_)
+            out.push_back(edge.id);
+    }
+
 private:
     // Widen a full run by doubling, in place when possible, by relocation when
     // not; out_side says which NodeRec field the pool's runs live in, so a

@@ -25,7 +25,8 @@ add_library(graph-lite
     src/version.cpp
     src/store.cpp
     src/graph.cpp
-    src/model.cpp)
+    src/model.cpp
+    src/cursor.cpp)
 add_library(graph-lite::graph-lite ALIAS graph-lite)
 
 target_include_directories(graph-lite PUBLIC

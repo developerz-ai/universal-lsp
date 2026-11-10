@@ -7,6 +7,10 @@
 
 #include <gtest/gtest.h>
 
+#include <climits>
+#include <set>
+#include <string>
+
 extern "C" int graph_lite_c_abi_smoke(void);
 
 TEST(Version, LinkedLibraryMatchesHeader) {
@@ -30,6 +34,37 @@ TEST(CAbi, HeaderCompilesAndLinksAsC) {
 TEST(CAbi, StatusStringIsNeverNull) {
     EXPECT_STREQ(graph_lite_status_string(GRAPH_LITE_OK), "ok");
     EXPECT_NE(graph_lite_status_string(static_cast<graph_lite_status>(9999)), nullptr);
+}
+
+TEST(CAbi, EndStatusHasItsOwnMessage) {
+    EXPECT_EQ(static_cast<int>(GRAPH_LITE_ERR_END), 8);
+    EXPECT_STREQ(graph_lite_status_string(GRAPH_LITE_ERR_END), "end of iteration");
+
+    // Every defined code (0..8) has a distinct, non-empty, known message.
+    std::set<std::string> seen;
+    for (int code = 0; code <= static_cast<int>(GRAPH_LITE_ERR_END); ++code) {
+        const char* text = graph_lite_status_string(static_cast<graph_lite_status>(code));
+        ASSERT_NE(text, nullptr) << "code " << code;
+        EXPECT_NE(std::string(text), "") << "code " << code;
+        EXPECT_NE(std::string(text), "unknown status") << "code " << code;
+        EXPECT_TRUE(seen.insert(text).second) << "duplicate message for code " << code;
+    }
+}
+
+TEST(CAbi, UnknownStatusCodesGetTheSameNonNullString) {
+    const std::string unknown = "unknown status";
+    for (int code = -5; code <= 64; ++code) {
+        const char* text = graph_lite_status_string(static_cast<graph_lite_status>(code));
+        ASSERT_NE(text, nullptr) << "code " << code;
+        if (code < 0 || code >= 9) {
+            EXPECT_EQ(std::string(text), unknown) << "code " << code;
+        }
+    }
+    for (const int code : {INT_MAX, INT_MIN, INT_MIN + 1, -1}) {
+        const char* text = graph_lite_status_string(static_cast<graph_lite_status>(code));
+        ASSERT_NE(text, nullptr) << "code " << code;
+        EXPECT_EQ(std::string(text), unknown) << "code " << code;
+    }
 }
 
 TEST(CAbi, ErrorCarriesTheCodeNotJustAMessage) {

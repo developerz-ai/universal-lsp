@@ -53,7 +53,6 @@
 #define GRAPH_LITE_VERSION_STRING "0.0.1"
 
 #include <stddef.h>
-#include <stdint.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -75,6 +74,8 @@ typedef enum graph_lite_status {
     GRAPH_LITE_ERR_CORRUPT = 5,
     GRAPH_LITE_ERR_VERSION_MISMATCH = 6,
     GRAPH_LITE_ERR_BUFFER_TOO_SMALL = 7,
+    /* Iteration is exhausted (graph_lite_cursor_next). Not a failure. */
+    GRAPH_LITE_ERR_END = 8,
 
     /* Forces the enum to int width, which makes the RANGE of the type cover every
      * int a caller could pass. Without it, a value outside the declared
@@ -281,6 +282,60 @@ graph_lite_status graph_lite_node_in_neighbors(const graph_lite_graph* graph, gr
  * ignored); adjacency and property storage included. For capacity planning,
  * not accounting. */
 graph_lite_status graph_lite_graph_memory_usage(const graph_lite_graph* graph, uint64_t* out_bytes);
+
+/* ------------------------------------------------------------------------ *
+ * Cursors (additive)
+ *
+ * A cursor iterates ids through an opaque, caller-owned handle: created with
+ * graph_lite_cursor_open(), released exactly once with
+ * graph_lite_cursor_destroy(). There are no callbacks.
+ *
+ * SNAPSHOT  Open copies the ids it will yield. The cursor is independent of
+ *           any later mutation of the graph and outlives it: the graph may be
+ *           changed or destroyed while a cursor is still being read.
+ *
+ * ORDER     NODES, EDGES, OUT_EDGES and IN_EDGES yield ids ascending.
+ *           OUT_NEIGHBORS and IN_NEIGHBORS yield neighbor NODE ids in
+ *           unspecified order, repeating a node once per parallel edge.
+ *
+ * ------------------------------------------------------------------------ */
+
+/* Opaque handle. One cursor is not safe for concurrent use. */
+typedef struct graph_lite_cursor graph_lite_cursor;
+
+/* What a cursor iterates. NODES and EDGES cover the whole graph; the other
+ * kinds are relative to one node. */
+typedef enum graph_lite_cursor_kind {
+    GRAPH_LITE_CURSOR_NODES = 0,
+    GRAPH_LITE_CURSOR_EDGES = 1,
+    GRAPH_LITE_CURSOR_OUT_EDGES = 2,
+    GRAPH_LITE_CURSOR_IN_EDGES = 3,
+    GRAPH_LITE_CURSOR_OUT_NEIGHBORS = 4,
+    GRAPH_LITE_CURSOR_IN_NEIGHBORS = 5,
+    GRAPH_LITE_CURSOR_KIND_FORCE_INT = 0x7fffffff
+} graph_lite_cursor_kind;
+
+/* Opens a cursor over a snapshot taken now. `node` is ignored for NODES and
+ * EDGES; for the other kinds it names the node, and NOT_FOUND is returned if it
+ * is 0 or absent. NULL g or out, or an unknown kind -> INVALID_ARGUMENT.
+ * Allocation failure -> OUT_OF_MEMORY. *out is set on success only. */
+graph_lite_status graph_lite_cursor_open(const graph_lite_graph* g, graph_lite_cursor_kind kind,
+                                         graph_lite_id node, graph_lite_cursor** out);
+
+/* Writes the next id to *out_id. At exhaustion returns GRAPH_LITE_ERR_END and
+ * leaves *out_id untouched. NULL c or out_id -> INVALID_ARGUMENT. */
+graph_lite_status graph_lite_cursor_next(graph_lite_cursor* c, graph_lite_id* out_id);
+
+/* Copies ALL remaining ids into buf (cap entries). *count is ALWAYS set to the
+ * required size. If cap < required the result is BUFFER_TOO_SMALL, nothing is
+ * written and the cursor does not advance. On success the cursor is at its
+ * end. buf may be NULL when cap == 0 (the size query); NULL buf with cap > 0,
+ * or a NULL c or count -> INVALID_ARGUMENT. */
+graph_lite_status graph_lite_cursor_drain(graph_lite_cursor* c, graph_lite_id* buf, uint64_t cap,
+                                          uint64_t* count);
+
+/* Releases a cursor. NULL is accepted and ignored. */
+void graph_lite_cursor_destroy(graph_lite_cursor* c);
 
 #ifdef __cplusplus
 } /* extern "C" */

@@ -123,7 +123,7 @@ graph_lite_status Store::node_remove(graph_lite_id id) {
 
     const uint64_t back = static_cast<uint64_t>(nodes_.size() - 1);
     if (slot != back) {
-        nodes_[static_cast<size_t>(slot)] = std::move(nodes_[static_cast<size_t>(back)]);
+        nodes_[static_cast<size_t>(slot)] = nodes_[static_cast<size_t>(back)];
         node_index_.at(nodes_[static_cast<size_t>(slot)].id) = slot;
     }
     nodes_.pop_back();
@@ -228,7 +228,7 @@ void Store::edge_remove_at(uint64_t slot) {
             nodes_[static_cast<size_t>(node_index_.at(edges_[static_cast<size_t>(back)].from))];
         NodeRec& mt =
             nodes_[static_cast<size_t>(node_index_.at(edges_[static_cast<size_t>(back)].to))];
-        edges_[static_cast<size_t>(slot)] = std::move(edges_[static_cast<size_t>(back)]);
+        edges_[static_cast<size_t>(slot)] = edges_[static_cast<size_t>(back)];
         edge_index_.at(edges_[static_cast<size_t>(slot)].id) = slot;
         out_pool_.cell(mf.out, edges_[static_cast<size_t>(slot)].out_pos) = slot;
         in_pool_.cell(mt.in, edges_[static_cast<size_t>(slot)].in_pos) = slot;

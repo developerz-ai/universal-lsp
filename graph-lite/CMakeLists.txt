@@ -22,8 +22,10 @@ set(GRAPH_LITE_VERSION 0.0.1)
 # ergonomics over it and exports nothing. Sources may be C++ internally — the ABI
 # is what is constrained, not the implementation language.
 add_library(graph-lite
-    src/model.cpp
-    src/version.cpp)
+    src/version.cpp
+    src/store.cpp
+    src/graph.cpp
+    src/model.cpp)
 add_library(graph-lite::graph-lite ALIAS graph-lite)
 
 target_include_directories(graph-lite PUBLIC
@@ -33,6 +35,12 @@ target_include_directories(graph-lite PUBLIC
 target_compile_features(graph-lite PUBLIC cxx_std_20)
 target_link_libraries(graph-lite PRIVATE ulsp_warnings ulsp_sanitizers)
 set_target_properties(graph-lite PROPERTIES VERSION ${GRAPH_LITE_VERSION})
+
+# The numbers behind docs/graph-lite/benchmark.md come from here. EXCLUDE_FROM_ALL:
+# measuring is an explicit act (`cmake --build --preset release --target
+# graph_lite_bench`), not something every build should pay for.
+add_executable(graph_lite_bench EXCLUDE_FROM_ALL bench/store_bench.cpp)
+target_link_libraries(graph_lite_bench PRIVATE graph-lite ulsp_warnings ulsp_sanitizers)
 
 # No `target_link_libraries(graph-lite PUBLIC <anything from this repo>)`, ever.
 # Dependencies flow one way: engine -> graph-lite. Guard: scripts/lint/graph-lite-boundary.ts

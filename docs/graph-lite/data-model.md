@@ -1,8 +1,9 @@
 # Data model
 
-> **Shipped (in-memory):** ids, tags, nodes, edges and properties as described
-> here, through the C ABI in `graph-lite.h`. Still design: traversal, CSR storage,
-> persistence.
+> **Shipped in v0.0.1-wip (in-memory, through the C ABI in `graph-lite.h`):**
+> stable ids, type tags, directed edges with first-class reverse adjacency, and
+> properties as described here. The property store stays separate from the
+> adjacency arrays (see Properties below). Still design: traversal, persistence.
 
 ## Nodes
 

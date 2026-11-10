@@ -8,9 +8,10 @@ library, no server, no query language, no runtime dependencies.
 Ruby, JavaScript, Python, Rust, Go. C++ callers get a header-only ergonomics layer
 on top; nobody else has to care that the implementation is C++.
 
-> **v0.0.1 — work in progress.** The node/edge model ships as an in-memory store:
-> stable ids, tags, adjacency listing and typed properties. Traversal, CSR storage
-> and persistence are still design.
+> **v0.0.1 — work in progress.** The node/edge model ships behind the C ABI as an
+> in-memory store: contiguous forward and reverse adjacency, stable ids that are
+> never reused, tags and typed properties. BFS/DFS/path traversal and persistence
+> remain design.
 
 ## Two headers, one contract
 

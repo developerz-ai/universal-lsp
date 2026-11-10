@@ -74,9 +74,76 @@ int graph_lite_c_abi_smoke(void) {
         return 16;
     if (graph_lite_remove_node(g, b) != GRAPH_LITE_ERR_NOT_FOUND)
         return 17;
+    graph_lite_graph_destroy(g); /* the model smoke's handle lives only here */
 
-    graph_lite_graph_destroy(g);
-    graph_lite_graph_destroy(0);
+    /* ---- the store-query surface: degrees and neighbor buffers, called
+       exactly as an FFI binding would ---- */
+
+    /* Null handle and null out-parameter are distinct from every other failure,
+       and are checked before anything is dereferenced. */
+    {
+        uint64_t value = 0;
+        uint64_t ncount = 0;
+        graph_lite_graph* graph = 0;
+        graph_lite_id edge = GRAPH_LITE_INVALID_ID;
+
+        if (graph_lite_add_node(0, 7, &value) != GRAPH_LITE_ERR_INVALID_ARGUMENT)
+            return 20;
+        if (graph_lite_graph_create(&graph) != GRAPH_LITE_OK || graph == 0)
+            return 21;
+
+        if (graph_lite_add_node(graph, 7, &a) != GRAPH_LITE_OK)
+            return 22;
+        if (graph_lite_add_node(graph, 8, &b) != GRAPH_LITE_OK)
+            return 23;
+        if (a == 0 || b == 0 || b <= a)
+            return 24; /* ids start at 1 and are issued monotonically */
+
+        if (graph_lite_add_edge(graph, a, b, 9, &edge) != GRAPH_LITE_OK)
+            return 25;
+        if (edge == 0)
+            return 26; /* edge ids come from their own monotonic space, never 0 */
+
+        value = 0;
+        if (graph_lite_node_out_degree(graph, a, &value) != GRAPH_LITE_OK || value != 1)
+            return 27;
+        if (graph_lite_node_in_degree(graph, b, &value) != GRAPH_LITE_OK || value != 1)
+            return 28;
+
+        {
+            graph_lite_id neighbors[1] = {0};
+            if (graph_lite_node_out_neighbors(graph, a, neighbors, 1, &ncount) != GRAPH_LITE_OK ||
+                ncount != 1 || neighbors[0] != b)
+                return 29;
+            if (graph_lite_node_in_neighbors(graph, b, neighbors, 1, &ncount) != GRAPH_LITE_OK ||
+                ncount != 1 || neighbors[0] != a)
+                return 30;
+
+            /* Capacity below degree: required count comes back, buffer untouched. */
+            neighbors[0] = 123;
+            if (graph_lite_node_out_neighbors(graph, a, neighbors, 0, &ncount) !=
+                    GRAPH_LITE_ERR_BUFFER_TOO_SMALL ||
+                ncount != 1 || neighbors[0] != 123)
+                return 31;
+        }
+
+        if (graph_lite_node_tag(graph, b, &tag) != GRAPH_LITE_OK || tag != 8)
+            return 32;
+
+        /* Removing an endpoint cascades the edge: gone, and the id stays gone. */
+        if (graph_lite_remove_node(graph, a) != GRAPH_LITE_OK)
+            return 33;
+        if (graph_lite_edge_info(graph, edge, 0, 0, 0) != GRAPH_LITE_ERR_NOT_FOUND)
+            return 34;
+        if (graph_lite_node_out_degree(graph, a, &value) != GRAPH_LITE_ERR_NOT_FOUND)
+            return 35;
+
+        if (graph_lite_node_count(graph) != 1 || graph_lite_edge_count(graph) != 0)
+            return 36;
+
+        graph_lite_graph_destroy(graph);
+    }
+    graph_lite_graph_destroy(0); /* NULL destroy is a no-op */
 
     return 0;
 }

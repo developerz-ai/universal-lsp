@@ -5,8 +5,10 @@ language-server processes), plus **graph-lite** — the embeddable graph library
 runs on. Built for a terminal-first, agent-driven world; standard LSP for editors,
 MCP for agents.
 
-**Status:** pre-implementation. Repo infrastructure, gates and docs are in place;
-build phase 1 (graph-lite core) is the current work. Scope: [`docs/spec.md`](docs/spec.md).
+**Status:** graph-lite store shipped (v0.0.1-wip): the typed node/edge store behind
+the C ABI — stable, never-reused ids, both adjacency directions materialized.
+Traversal, persistence and properties remain design; the engine itself is still
+pre-implementation. Scope: [`docs/spec.md`](docs/spec.md).
 
 **This repo is AI-first.** Agents write the code; humans review at the PR. Every
 rule below exists to make that loop fast and safe.

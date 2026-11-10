@@ -30,16 +30,22 @@
  *   discipline — see scripts/lint/graph-lite-vocabulary.ts.
  *
  * STATUS
- *   Version information and the in-memory node/edge model with typed
- *   properties: stable ids, tags, adjacency listing. Traversal, CSR-backed
- *   storage and the persistence format are still design — see
- *   docs/graph-lite/README.md.
+ *   Model phase (v0.0.1-wip): the in-memory node/edge model with typed
+ *   properties ships behind this ABI — create/destroy, add/remove, counts,
+ *   adjacency listing and property storage — with stable, never-reused ids and
+ *   both adjacency directions materialized contiguously (see benchmark.md).
+ *   Traversal, CSR-backed storage and the persistence format are still design —
+ *   see docs/graph-lite/README.md.
  *
  * Licensed under the MIT License. See graph-lite/LICENSE — deliberately more
  * permissive than the engine that consumes it.
  */
 #ifndef GRAPH_LITE_H
 #define GRAPH_LITE_H
+
+/* Ids and counts are fixed-width on purpose — their width is ABI, so it comes
+ * from <stdint.h> and never from a platform-dependent type. */
+#include <stdint.h>
 
 #define GRAPH_LITE_VERSION_MAJOR 0
 #define GRAPH_LITE_VERSION_MINOR 0
@@ -93,8 +99,14 @@ const char* graph_lite_version_string(void);
  * null-check an error-message getter will eventually forget. */
 const char* graph_lite_status_string(graph_lite_status status);
 
-/* ------------------------------------------------------------------------ *
- * Node/edge model
+/*
+ * The model — the node/edge surface of docs/graph-lite/README.md.
+ *
+ * HANDLES  graph_lite_graph is opaque and caller-owned: created with
+ *          graph_lite_graph_create(), released exactly once with
+ *          graph_lite_graph_destroy(). NULL is a valid argument only where
+ *          stated; anything else that cannot proceed fails with
+ *          GRAPH_LITE_ERR_INVALID_ARGUMENT.
  *
  * Ids are 64-bit and 0 is never valid (GRAPH_LITE_INVALID_ID). Node ids and edge
  * ids are SEPARATE spaces, each issued from its own counter starting at 1. A
@@ -104,6 +116,14 @@ const char* graph_lite_status_string(graph_lite_status status);
  * A tag is an opaque 64-bit value the caller defines. It is compared with ==
  * and nothing else: no registry, no reserved value (0 and UINT64_MAX are
  * ordinary tags), no validation.
+ *
+ * OOM      A mutating call that fails with GRAPH_LITE_ERR_OUT_OF_MEMORY never
+ *          leaves the graph half-written: the id it would have issued does not
+ *          exist, counts name only entities the graph holds, and every query
+ *          answers exactly for what survived. A refused remove_node may
+ *          already have drained its incident edges — that drain is
+ *          allocation-free and commits first.
+ *
  * ------------------------------------------------------------------------ */
 
 /* Opaque handle. One graph is not safe for concurrent mutation; concurrent
@@ -222,6 +242,45 @@ graph_lite_status graph_lite_get_string(const graph_lite_graph* g, graph_lite_ki
 
 graph_lite_status graph_lite_remove_property(graph_lite_graph* g, graph_lite_kind kind,
                                              graph_lite_id id, const char* key);
+
+/* ------------------------------------------------------------------------ *
+ * Store queries (additive over the model above)
+ *
+ * Degrees and neighbor listing read the materialized adjacency directly:
+ * both directions are kept contiguous per node (benchmarked in
+ * docs/graph-lite/benchmark.md), so these are O(degree) copies. The neighbor
+ * functions list NEIGHBOR NODE ids; graph_lite_out_edges /
+ * graph_lite_in_edges above list EDGE ids. Queries allocate nothing.
+ *
+ * THREADS  Single-writer per graph. The store holds no lock; concurrent use
+ *          must be serialized by the caller (see the handle note above).
+ * ------------------------------------------------------------------------ */
+
+/* Live edge count per direction for one node. NOT_FOUND if the id is 0 or
+ * absent. */
+graph_lite_status graph_lite_node_out_degree(const graph_lite_graph* graph, graph_lite_id id,
+                                             uint64_t* out_degree);
+graph_lite_status graph_lite_node_in_degree(const graph_lite_graph* graph, graph_lite_id id,
+                                            uint64_t* out_degree);
+
+/* Copy neighbor NODE ids into buffer. Order is unspecified and may change after
+ * any removal; sort before comparing. buffer may be NULL only when the call
+ * would not write into it: a degree-0 node succeeds with *out_count == 0, while
+ * buffer == NULL with room for a real neighbor fails INVALID_ARGUMENT — after
+ * the capacity check, so NULL buffer with capacity 0 stays the "how many?"
+ * probe and fails BUFFER_TOO_SMALL. */
+graph_lite_status graph_lite_node_out_neighbors(const graph_lite_graph* graph, graph_lite_id id,
+                                                graph_lite_id* buffer, uint64_t capacity,
+                                                uint64_t* out_count);
+graph_lite_status graph_lite_node_in_neighbors(const graph_lite_graph* graph, graph_lite_id id,
+                                               graph_lite_id* buffer, uint64_t capacity,
+                                               uint64_t* out_count);
+
+/* Footprint estimate: the sum of each internal container's capacity times its
+ * element size (hash indices counted at bucket granularity, allocator overhead
+ * ignored); adjacency and property storage included. For capacity planning,
+ * not accounting. */
+graph_lite_status graph_lite_graph_memory_usage(const graph_lite_graph* graph, uint64_t* out_bytes);
 
 #ifdef __cplusplus
 } /* extern "C" */

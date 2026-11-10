@@ -1,58 +1,36 @@
 // The node/edge model behind the C ABI in graph-lite.h.
 //
-// Identity: node ids and edge ids come from two separate counters that start at 1
-// and only go up. An id is never reused after removal, so a caller's id is either
-// the thing it always named or NOT_FOUND. Keeping the counters apart from the
-// containers is what makes that true — the counter, not "size + 1", issues ids.
+// This file owns the C seam for the model surface — create/destroy, add/remove,
+// tags, edge info, counts, edge-id listing — and the whole property store. The
+// adjacency itself lives in the store (src/store.cpp): per-node contiguous
+// forward and reverse runs, with stable ids issued from two separate monotonic
+// counters that start at 1 and only go up, so an id is never reused after
+// removal and a caller's id is either the thing it always named or NOT_FOUND.
 //
-// Layout: adjacency (per-node out/in edge-id vectors) lives in the node and edge
-// tables; properties live in their own maps keyed by owner id. Walking edges never
-// touches property storage.
+// Identity — unknown id, missing endpoint — is decided by the store, next to
+// the indexes it owns; this seam validates only what the store cannot see: the
+// null handle, the null out-parameter, the property kind. One seam per
+// invariant keeps "where would this be checked" answerable.
+//
+// Layout: adjacency lives in the store; properties live in their own tables
+// keyed by owner id, so a walk of the adjacency never touches property storage.
 //
 // Tags are opaque 64-bit values. They are stored and compared by == in callers'
 // code; nothing here inspects, registers or validates one.
 
 #include "graph-lite.h"
 
+#include "store.hpp"
+
 #include <algorithm>
-#include <new>
 #include <string>
-#include <unordered_map>
-#include <variant>
 #include <vector>
 
 namespace {
 
-using PropertyValue = std::variant<int64_t, double, bool, std::string>;
-using PropertyMap = std::unordered_map<std::string, PropertyValue>;
-using PropertyTable = std::unordered_map<graph_lite_id, PropertyMap>;
-
-struct NodeRecord {
-    graph_lite_tag tag;
-    std::vector<graph_lite_id> out; // edge ids, ascending
-    std::vector<graph_lite_id> in;  // edge ids, ascending
-};
-
-struct EdgeRecord {
-    graph_lite_id from;
-    graph_lite_id to;
-    graph_lite_tag tag;
-};
-
-// Makes room for one more element so the following push_back cannot throw. Growth
-// is geometric so a run of adds stays amortised O(1).
-void reserve_one_more(std::vector<graph_lite_id>& ids) {
-    if (ids.size() == ids.capacity())
-        ids.reserve(std::max<std::size_t>(4, ids.capacity() * 2));
-}
-
-// Edge ids are issued in ascending order and appended, so each vector is already
-// sorted; erase keeps it so.
-void unlink(std::vector<graph_lite_id>& ids, graph_lite_id edge) {
-    const auto it = std::lower_bound(ids.begin(), ids.end(), edge);
-    if (it != ids.end() && *it == edge)
-        ids.erase(it);
-}
+using graph_lite::internal::PropertyMap;
+using graph_lite::internal::PropertyTable;
+using graph_lite::internal::PropertyValue;
 
 bool valid_kind(graph_lite_kind kind) {
     return kind == GRAPH_LITE_NODE || kind == GRAPH_LITE_EDGE;
@@ -65,66 +43,17 @@ auto find_key(const PropertyMap& properties, const char* key) {
                         [key](const auto& property) { return property.first == key; });
 }
 
-// Runs fn, turning an allocation failure into the status the ABI promises. No
-// exception may cross an extern "C" boundary.
+// Runs fn, turning a failure into the status the ABI promises. No exception may
+// cross an extern "C" boundary, and allocation failure is not the only one the
+// store can raise (a size limit surfaces as length_error) — anything escaping
+// the call maps to OOM, the one status an embedder can act on.
 template <typename Fn>
 graph_lite_status guarded(Fn&& fn) {
     try {
         return fn();
-    } catch (const std::bad_alloc&) {
+    } catch (...) {
         return GRAPH_LITE_ERR_OUT_OF_MEMORY;
     }
-}
-
-} // namespace
-
-struct graph_lite_graph {
-    std::unordered_map<graph_lite_id, NodeRecord> nodes;
-    std::unordered_map<graph_lite_id, EdgeRecord> edges;
-    PropertyTable node_properties;
-    PropertyTable edge_properties;
-    graph_lite_id next_node_id = 1;
-    graph_lite_id next_edge_id = 1;
-
-    PropertyTable& properties(graph_lite_kind kind) {
-        return kind == GRAPH_LITE_NODE ? node_properties : edge_properties;
-    }
-
-    const PropertyTable& properties(graph_lite_kind kind) const {
-        return kind == GRAPH_LITE_NODE ? node_properties : edge_properties;
-    }
-
-    bool has_owner(graph_lite_kind kind, graph_lite_id id) const {
-        return kind == GRAPH_LITE_NODE ? nodes.count(id) != 0 : edges.count(id) != 0;
-    }
-
-    // Unlinks the edge from both endpoints, then drops it and its properties. The
-    // caller has already checked the edge exists.
-    void erase_edge(graph_lite_id id) {
-        const EdgeRecord edge = edges.at(id);
-        unlink(nodes.at(edge.from).out, id);
-        unlink(nodes.at(edge.to).in, id);
-        edge_properties.erase(id);
-        edges.erase(id);
-    }
-};
-
-namespace {
-
-graph_lite_status list_edges(const graph_lite_graph* g, graph_lite_id node, bool outgoing,
-                             graph_lite_id* buf, std::size_t cap, std::size_t* count) {
-    if (!g || !count || (!buf && cap != 0))
-        return GRAPH_LITE_ERR_INVALID_ARGUMENT;
-    const auto it = g->nodes.find(node);
-    if (it == g->nodes.end())
-        return GRAPH_LITE_ERR_NOT_FOUND;
-
-    const std::vector<graph_lite_id>& ids = outgoing ? it->second.out : it->second.in;
-    *count = ids.size();
-    if (cap < ids.size())
-        return GRAPH_LITE_ERR_BUFFER_TOO_SMALL;
-    std::copy(ids.begin(), ids.end(), buf);
-    return GRAPH_LITE_OK;
 }
 
 graph_lite_status set_property(graph_lite_graph* g, graph_lite_kind kind, graph_lite_id id,
@@ -200,44 +129,36 @@ graph_lite_status graph_lite_add_node(graph_lite_graph* g, graph_lite_tag tag,
                                       graph_lite_id* out_id) {
     if (!g || !out_id)
         return GRAPH_LITE_ERR_INVALID_ARGUMENT;
-    return guarded([&] {
-        const graph_lite_id id = g->next_node_id;
-        g->nodes.emplace(id, NodeRecord{tag, {}, {}});
-        g->next_node_id = id + 1; // only once the node exists
-        *out_id = id;
-        return GRAPH_LITE_OK;
-    });
+    return guarded([&] { return g->store.node_add(tag, out_id); });
 }
 
 graph_lite_status graph_lite_remove_node(graph_lite_graph* g, graph_lite_id id) {
     if (!g)
         return GRAPH_LITE_ERR_INVALID_ARGUMENT;
     return guarded([&] {
-        const auto it = g->nodes.find(id);
-        if (it == g->nodes.end())
-            return GRAPH_LITE_ERR_NOT_FOUND;
+        // Collect the incident edge ids BEFORE anything changes: this gather is
+        // the only step here that can fail, so a refused removal changes nothing
+        // at all. The property erases cannot throw, and the store's drain is
+        // allocation-free and commits atomically — a compaction refusal after
+        // the drain leaves the post-removal state, never a third thing.
+        uint64_t out_count = 0;
+        uint64_t in_count = 0;
+        graph_lite_status st = g->store.out_edge_ids(id, nullptr, 0, &out_count);
+        if (st != GRAPH_LITE_OK && st != GRAPH_LITE_ERR_BUFFER_TOO_SMALL)
+            return st;
+        st = g->store.in_edge_ids(id, nullptr, 0, &in_count);
+        if (st != GRAPH_LITE_OK && st != GRAPH_LITE_ERR_BUFFER_TOO_SMALL)
+            return st;
 
-        // Copy first because the node record is about to go away. Do not call
-        // erase_edge here: compacting this node's adjacency for each incident edge
-        // makes a high-degree star quadratic. Only live neighbours need unlinking.
-        std::vector<graph_lite_id> incident = it->second.out;
-        incident.insert(incident.end(), it->second.in.begin(), it->second.in.end());
-        for (const graph_lite_id edge : incident) {
-            const auto edge_it = g->edges.find(edge);
-            if (edge_it == g->edges.end())
-                continue; // self-loop already removed from the other list
-
-            const EdgeRecord record = edge_it->second;
-            if (record.from != id)
-                unlink(g->nodes.at(record.from).out, edge);
-            if (record.to != id)
-                unlink(g->nodes.at(record.to).in, edge);
-            g->edge_properties.erase(edge);
-            g->edges.erase(edge_it);
-        }
+        std::vector<graph_lite_id> incident(static_cast<size_t>(out_count + in_count));
+        if (out_count > 0)
+            g->store.out_edge_ids(id, incident.data(), out_count, &out_count);
+        if (in_count > 0)
+            g->store.in_edge_ids(id, incident.data() + out_count, in_count, &in_count);
+        for (const graph_lite_id edge : incident)
+            g->edge_properties.erase(edge); // a self-loop appears twice; erase is idempotent
         g->node_properties.erase(id);
-        g->nodes.erase(id);
-        return GRAPH_LITE_OK;
+        return g->store.node_remove(id);
     });
 }
 
@@ -245,44 +166,23 @@ graph_lite_status graph_lite_node_tag(const graph_lite_graph* g, graph_lite_id i
                                       graph_lite_tag* out_tag) {
     if (!g || !out_tag)
         return GRAPH_LITE_ERR_INVALID_ARGUMENT;
-    const auto it = g->nodes.find(id);
-    if (it == g->nodes.end())
-        return GRAPH_LITE_ERR_NOT_FOUND;
-    *out_tag = it->second.tag;
-    return GRAPH_LITE_OK;
+    return g->store.node_type(id, out_tag);
 }
 
 graph_lite_status graph_lite_add_edge(graph_lite_graph* g, graph_lite_id from, graph_lite_id to,
                                       graph_lite_tag tag, graph_lite_id* out_id) {
     if (!g || !out_id)
         return GRAPH_LITE_ERR_INVALID_ARGUMENT;
-    return guarded([&] {
-        const auto from_it = g->nodes.find(from);
-        const auto to_it = g->nodes.find(to);
-        if (from_it == g->nodes.end() || to_it == g->nodes.end())
-            return GRAPH_LITE_ERR_NOT_FOUND;
-
-        // Everything that can throw happens before anything is linked, so a failed
-        // add leaves the graph exactly as it was.
-        reserve_one_more(from_it->second.out);
-        reserve_one_more(to_it->second.in);
-        const graph_lite_id id = g->next_edge_id;
-        g->edges.emplace(id, EdgeRecord{from, to, tag});
-        g->next_edge_id = id + 1;
-        from_it->second.out.push_back(id);
-        to_it->second.in.push_back(id);
-        *out_id = id;
-        return GRAPH_LITE_OK;
-    });
+    return guarded([&] { return g->store.edge_add(from, to, tag, out_id); });
 }
 
 graph_lite_status graph_lite_remove_edge(graph_lite_graph* g, graph_lite_id id) {
     if (!g)
         return GRAPH_LITE_ERR_INVALID_ARGUMENT;
-    if (g->edges.count(id) == 0)
+    if (!g->store.has_edge(id))
         return GRAPH_LITE_ERR_NOT_FOUND;
-    g->erase_edge(id);
-    return GRAPH_LITE_OK;
+    g->edge_properties.erase(id); // cannot throw; a dead edge keeps no properties
+    return g->store.edge_remove(id);
 }
 
 graph_lite_status graph_lite_edge_info(const graph_lite_graph* g, graph_lite_id id,
@@ -290,34 +190,29 @@ graph_lite_status graph_lite_edge_info(const graph_lite_graph* g, graph_lite_id 
                                        graph_lite_tag* tag) {
     if (!g)
         return GRAPH_LITE_ERR_INVALID_ARGUMENT;
-    const auto it = g->edges.find(id);
-    if (it == g->edges.end())
-        return GRAPH_LITE_ERR_NOT_FOUND;
-    if (from)
-        *from = it->second.from;
-    if (to)
-        *to = it->second.to;
-    if (tag)
-        *tag = it->second.tag;
-    return GRAPH_LITE_OK;
+    return g->store.edge_info(id, from, to, tag);
 }
 
 size_t graph_lite_node_count(const graph_lite_graph* g) {
-    return g ? g->nodes.size() : 0;
+    return g ? g->store.node_count() : 0;
 }
 
 size_t graph_lite_edge_count(const graph_lite_graph* g) {
-    return g ? g->edges.size() : 0;
+    return g ? g->store.edge_count() : 0;
 }
 
 graph_lite_status graph_lite_out_edges(const graph_lite_graph* g, graph_lite_id node,
                                        graph_lite_id* buf, size_t cap, size_t* count) {
-    return list_edges(g, node, true, buf, cap, count);
+    if (!g || !count || (!buf && cap != 0))
+        return GRAPH_LITE_ERR_INVALID_ARGUMENT;
+    return g->store.out_edge_ids(node, buf, cap, count);
 }
 
 graph_lite_status graph_lite_in_edges(const graph_lite_graph* g, graph_lite_id node,
                                       graph_lite_id* buf, size_t cap, size_t* count) {
-    return list_edges(g, node, false, buf, cap, count);
+    if (!g || !count || (!buf && cap != 0))
+        return GRAPH_LITE_ERR_INVALID_ARGUMENT;
+    return g->store.in_edge_ids(node, buf, cap, count);
 }
 
 graph_lite_status graph_lite_set_int(graph_lite_graph* g, graph_lite_kind kind, graph_lite_id id,

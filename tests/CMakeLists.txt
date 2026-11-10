@@ -12,6 +12,9 @@ function(ulsp_add_test name)
     add_executable(${name} ${T_SOURCES})
     target_link_libraries(${name} PRIVATE ${T_LINK} GTest::gtest_main ulsp_warnings ulsp_sanitizers)
     gtest_discover_tests(${name}
+        # Prefix ctest names with the suite name (graph_lite_store_test.Store…)
+        # so scoped runs select by the subsystem prefixes in scripts/lib/affected.ts.
+        TEST_PREFIX "${name}."
         PROPERTIES LABELS "unit"
         DISCOVERY_TIMEOUT 30)
 endfunction()

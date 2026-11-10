@@ -1,6 +1,8 @@
 # Data model
 
-> Design, not shipped behaviour. v0.0.1 exposes version information only.
+> Shipped in v0.0.1-wip: stable ids, type tags, directed edges with first-class
+> reverse adjacency. Still design: properties — the property store stays separate
+> from the adjacency arrays (see Properties below).
 
 ## Nodes
 

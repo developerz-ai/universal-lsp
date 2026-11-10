@@ -8,8 +8,9 @@ library, no server, no query language, no runtime dependencies.
 Ruby, JavaScript, Python, Rust, Go. C++ callers get a header-only ergonomics layer
 on top; nobody else has to care that the implementation is C++.
 
-> **v0.0.1 — pre-implementation.** The header exposes version information only.
-> The model, storage, traversal and persistence are designed and being built.
+> **v0.0.1-wip.** The typed node/edge store ships behind the C ABI: contiguous
+> forward and reverse adjacency, stable ids that are never reused. BFS/DFS/path
+> traversal and persistence remain design.
 
 ## Two headers, one contract
 

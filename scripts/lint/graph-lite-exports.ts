@@ -10,6 +10,7 @@ const HEADER = 'graph-lite/include/graph-lite.h';
 /** Every public C ABI entry point. Adding one is an audited ABI promise. */
 const EXPORTED_FUNCTIONS = new Set([
   'graph_lite_version',
+  'graph_lite_check_version',
   'graph_lite_version_string',
   'graph_lite_status_string',
   'graph_lite_graph_create',

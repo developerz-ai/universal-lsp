@@ -24,6 +24,18 @@ TEST(Version, StringMatchesComponents) {
     EXPECT_STREQ(graph_lite::version_string(), GRAPH_LITE_VERSION_STRING);
 }
 
+TEST(Version, CompatibilityCheckAcceptsTheHeaderVersion) {
+    EXPECT_EQ(graph_lite_check_version(GRAPH_LITE_VERSION_MAJOR, GRAPH_LITE_VERSION_MINOR,
+                                       GRAPH_LITE_VERSION_PATCH),
+              GRAPH_LITE_OK);
+}
+
+TEST(Version, CompatibilityCheckRejectsADifferentVersion) {
+    EXPECT_EQ(graph_lite_check_version(GRAPH_LITE_VERSION_MAJOR, GRAPH_LITE_VERSION_MINOR,
+                                       GRAPH_LITE_VERSION_PATCH + 1),
+              GRAPH_LITE_ERR_VERSION_MISMATCH);
+}
+
 TEST(CAbi, HeaderCompilesAndLinksAsC) {
     // The assertions live in the .c file; a non-zero return names which one
     // failed. This test exists so the C translation unit is actually linked —

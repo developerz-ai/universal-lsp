@@ -22,6 +22,8 @@ Versioning: [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### graph-lite
 
+- `0.1.0` — synchronized build, public-header, and runtime version reporting,
+  plus startup detection of header/binary version incompatibility.
 - `0.0.1` — public surface established as a **C ABI** (`graph-lite.h`): C linkage,
   opaque handles, integer status codes. `graph-lite.hpp` is header-only C++
   ergonomics over it and exports nothing of its own. A C translation unit in the

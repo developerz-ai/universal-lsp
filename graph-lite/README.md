@@ -8,7 +8,7 @@ library, no server, no query language, no runtime dependencies.
 Ruby, JavaScript, Python, Rust, Go. C++ callers get a header-only ergonomics layer
 on top; nobody else has to care that the implementation is C++.
 
-> **v0.0.1 — work in progress.** The node/edge model ships behind the C ABI as an
+> **v0.1.0 — work in progress.** The node/edge model ships behind the C ABI as an
 > in-memory store: contiguous forward and reverse adjacency, stable ids that are
 > never reused, tags and typed properties. Native BFS/DFS traversal ships with
 > forward/reverse directions, tag filters, limits, and partial-result status.
@@ -57,10 +57,10 @@ The shared `graph-lite` artifact exposes the C ABI for foreign runtimes.
 /* C — and the shape every binding sees */
 #include "graph-lite.h"
 
-int major, minor, patch;
-graph_lite_version(&major, &minor, &patch);
-/* compare against GRAPH_LITE_VERSION_* to catch a header/binary mismatch at
-   startup rather than as a corrupt read much later */
+if (graph_lite_check_version(GRAPH_LITE_VERSION_MAJOR, GRAPH_LITE_VERSION_MINOR,
+                             GRAPH_LITE_VERSION_PATCH) != GRAPH_LITE_OK) {
+    /* The header and loaded binary differ; reject the incompatible pairing. */
+}
 ```
 
 ```c

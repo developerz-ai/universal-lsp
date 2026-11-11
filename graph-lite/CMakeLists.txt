@@ -8,7 +8,7 @@
 cmake_minimum_required(VERSION 3.24)
 
 if(CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR)
-    project(graph-lite VERSION 0.0.1 DESCRIPTION "Embeddable property-graph library" LANGUAGES C CXX)
+    project(graph-lite VERSION 0.1.0 DESCRIPTION "Embeddable property-graph library" LANGUAGES C CXX)
     include(CTest)
     set(CMAKE_CXX_STANDARD 20)
     set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -17,7 +17,10 @@ if(CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR)
 endif()
 
 # Versioned independently of the LSP engine, per docs/spec.md §2.
-set(GRAPH_LITE_VERSION 0.0.1)
+set(GRAPH_LITE_VERSION 0.1.0)
+set(GRAPH_LITE_VERSION_MAJOR 0)
+set(GRAPH_LITE_VERSION_MINOR 1)
+set(GRAPH_LITE_VERSION_PATCH 0)
 
 # The public surface is C (graph-lite.h); graph-lite.hpp is header-only
 # ergonomics over it and exports nothing. Sources may be C++ internally — the ABI
@@ -37,7 +40,12 @@ target_include_directories(graph-lite PUBLIC
 
 target_compile_features(graph-lite PUBLIC cxx_std_20)
 target_link_libraries(graph-lite PRIVATE ulsp_warnings ulsp_sanitizers)
-target_compile_definitions(graph-lite PRIVATE GRAPH_LITE_BUILD)
+target_compile_definitions(graph-lite PRIVATE
+    GRAPH_LITE_BUILD
+    GRAPH_LITE_BINARY_VERSION_MAJOR=${GRAPH_LITE_VERSION_MAJOR}
+    GRAPH_LITE_BINARY_VERSION_MINOR=${GRAPH_LITE_VERSION_MINOR}
+    GRAPH_LITE_BINARY_VERSION_PATCH=${GRAPH_LITE_VERSION_PATCH}
+    GRAPH_LITE_BINARY_VERSION_STRING="${GRAPH_LITE_VERSION}")
 set_target_properties(graph-lite PROPERTIES
     CXX_VISIBILITY_PRESET hidden
     VISIBILITY_INLINES_HIDDEN YES

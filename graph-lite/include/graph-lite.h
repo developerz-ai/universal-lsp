@@ -37,8 +37,7 @@
  *   Native traversal ships over the contiguous forward and reverse adjacency.
  *   Persistence remains design — see docs/graph-lite/README.md.
  *
- * Licensed under the MIT License. See graph-lite/LICENSE — deliberately more
- * permissive than the engine that consumes it.
+ * Licensed under the MIT License. See graph-lite/LICENSE.
  */
 #ifndef GRAPH_LITE_H
 #define GRAPH_LITE_H
@@ -53,6 +52,20 @@
 #define GRAPH_LITE_VERSION_STRING "0.0.1"
 
 #include <stddef.h>
+
+/* Public shared-library entry points. GRAPH_LITE_BUILD is defined only while
+ * building graph-lite itself. */
+#if defined(_WIN32)
+#if defined(GRAPH_LITE_BUILD)
+#define GRAPH_LITE_API __declspec(dllexport)
+#else
+#define GRAPH_LITE_API __declspec(dllimport)
+#endif
+#elif defined(__GNUC__) || defined(__clang__)
+#define GRAPH_LITE_API __attribute__((visibility("default")))
+#else
+#define GRAPH_LITE_API
+#endif
 
 #ifdef __cplusplus
 extern "C" {
@@ -91,15 +104,18 @@ typedef enum graph_lite_status {
  * Compare against the GRAPH_LITE_VERSION_* macros to catch a header/binary
  * mismatch at startup rather than as a corrupt read much later. Any pointer may
  * be NULL if the caller does not want that component. */
+GRAPH_LITE_API
 void graph_lite_version(int* major, int* minor, int* patch);
 
 /* Version string of the linked library, e.g. "0.0.1". Static storage; the caller
  * does not free it. */
+GRAPH_LITE_API
 const char* graph_lite_version_string(void);
 
 /* Human-readable text for a status code. Static storage, never NULL — an unknown
  * code returns a string saying so rather than NULL, because a binding that has to
  * null-check an error-message getter will eventually forget. */
+GRAPH_LITE_API
 const char* graph_lite_status_string(graph_lite_status status);
 
 /*
@@ -156,39 +172,49 @@ typedef enum graph_lite_value_kind {
 
 /* Creates an empty graph. *out is set on success only. Release with
  * graph_lite_graph_destroy. */
+GRAPH_LITE_API
 graph_lite_status graph_lite_graph_create(graph_lite_graph** out);
 
 /* Releases a graph and everything in it. NULL is accepted and ignored. */
+GRAPH_LITE_API
 void graph_lite_graph_destroy(graph_lite_graph* g);
 
 /* Adds a node with the given tag; its new id is written to *out_id. */
+GRAPH_LITE_API
 graph_lite_status graph_lite_add_node(graph_lite_graph* g, graph_lite_tag tag,
                                       graph_lite_id* out_id);
 
 /* Removes a node. Cascades: every incident edge, in either direction, is
  * removed too, along with the properties of the node and of those edges. NOT_FOUND
  * if the id is 0 or absent. */
+GRAPH_LITE_API
 graph_lite_status graph_lite_remove_node(graph_lite_graph* g, graph_lite_id id);
 
 /* Reads a node's tag. NOT_FOUND if the id is 0 or absent. */
+GRAPH_LITE_API
 graph_lite_status graph_lite_node_tag(const graph_lite_graph* g, graph_lite_id id,
                                       graph_lite_tag* out_tag);
 
 /* Adds a directed edge from -> to. NOT_FOUND if either endpoint is absent.
  * Self-loops and parallel edges are allowed. */
+GRAPH_LITE_API
 graph_lite_status graph_lite_add_edge(graph_lite_graph* g, graph_lite_id from, graph_lite_id to,
                                       graph_lite_tag tag, graph_lite_id* out_id);
 
 /* Removes an edge and its properties. NOT_FOUND if the id is 0 or absent. */
+GRAPH_LITE_API
 graph_lite_status graph_lite_remove_edge(graph_lite_graph* g, graph_lite_id id);
 
 /* Reads an edge's endpoints and tag. Each out pointer is optional (may be NULL).
  * NOT_FOUND if the id is 0 or absent. */
+GRAPH_LITE_API
 graph_lite_status graph_lite_edge_info(const graph_lite_graph* g, graph_lite_id id,
                                        graph_lite_id* from, graph_lite_id* to, graph_lite_tag* tag);
 
 /* Number of live nodes / edges. 0 for a NULL graph. */
+GRAPH_LITE_API
 size_t graph_lite_node_count(const graph_lite_graph* g);
+GRAPH_LITE_API
 size_t graph_lite_edge_count(const graph_lite_graph* g);
 
 /* Lists the ids of the edges leaving / entering a node, ascending, into a
@@ -196,8 +222,10 @@ size_t graph_lite_edge_count(const graph_lite_graph* g);
  * if cap < required the result is BUFFER_TOO_SMALL and nothing is promised about
  * buf. buf may be NULL when cap == 0 (the size query). A self-loop appears in
  * both lists. NOT_FOUND if the node is 0 or absent. */
+GRAPH_LITE_API
 graph_lite_status graph_lite_out_edges(const graph_lite_graph* g, graph_lite_id node,
                                        graph_lite_id* buf, size_t cap, size_t* count);
+GRAPH_LITE_API
 graph_lite_status graph_lite_in_edges(const graph_lite_graph* g, graph_lite_id node,
                                       graph_lite_id* buf, size_t cap, size_t* count);
 
@@ -214,35 +242,45 @@ graph_lite_status graph_lite_in_edges(const graph_lite_graph* g, graph_lite_id n
  * INVALID_ARGUMENT.
  * ------------------------------------------------------------------------ */
 
+GRAPH_LITE_API
 graph_lite_status graph_lite_set_int(graph_lite_graph* g, graph_lite_kind kind, graph_lite_id id,
                                      const char* key, int64_t value);
+GRAPH_LITE_API
 graph_lite_status graph_lite_set_double(graph_lite_graph* g, graph_lite_kind kind, graph_lite_id id,
                                         const char* key, double value);
 /* Any nonzero value is stored as true. */
+GRAPH_LITE_API
 graph_lite_status graph_lite_set_bool(graph_lite_graph* g, graph_lite_kind kind, graph_lite_id id,
                                       const char* key, int value);
 /* The string is copied. */
+GRAPH_LITE_API
 graph_lite_status graph_lite_set_string(graph_lite_graph* g, graph_lite_kind kind, graph_lite_id id,
                                         const char* key, const char* value);
 
+GRAPH_LITE_API
 graph_lite_status graph_lite_property_kind(const graph_lite_graph* g, graph_lite_kind kind,
                                            graph_lite_id id, const char* key,
                                            graph_lite_value_kind* out);
 
+GRAPH_LITE_API
 graph_lite_status graph_lite_get_int(const graph_lite_graph* g, graph_lite_kind kind,
                                      graph_lite_id id, const char* key, int64_t* out);
+GRAPH_LITE_API
 graph_lite_status graph_lite_get_double(const graph_lite_graph* g, graph_lite_kind kind,
                                         graph_lite_id id, const char* key, double* out);
 /* *out is 0 or 1. */
+GRAPH_LITE_API
 graph_lite_status graph_lite_get_bool(const graph_lite_graph* g, graph_lite_kind kind,
                                       graph_lite_id id, const char* key, int* out);
 /* *len is the byte length excluding the NUL, always set on a string property.
  * Success needs cap >= *len + 1 and NUL-terminates buf; otherwise
  * BUFFER_TOO_SMALL. buf may be NULL when cap == 0 (the size query). */
+GRAPH_LITE_API
 graph_lite_status graph_lite_get_string(const graph_lite_graph* g, graph_lite_kind kind,
                                         graph_lite_id id, const char* key, char* buf, size_t cap,
                                         size_t* len);
 
+GRAPH_LITE_API
 graph_lite_status graph_lite_remove_property(graph_lite_graph* g, graph_lite_kind kind,
                                              graph_lite_id id, const char* key);
 
@@ -261,8 +299,10 @@ graph_lite_status graph_lite_remove_property(graph_lite_graph* g, graph_lite_kin
 
 /* Live edge count per direction for one node. NOT_FOUND if the id is 0 or
  * absent. */
+GRAPH_LITE_API
 graph_lite_status graph_lite_node_out_degree(const graph_lite_graph* graph, graph_lite_id id,
                                              uint64_t* out_degree);
+GRAPH_LITE_API
 graph_lite_status graph_lite_node_in_degree(const graph_lite_graph* graph, graph_lite_id id,
                                             uint64_t* out_degree);
 
@@ -272,9 +312,11 @@ graph_lite_status graph_lite_node_in_degree(const graph_lite_graph* graph, graph
  * buffer == NULL with room for a real neighbor fails INVALID_ARGUMENT — after
  * the capacity check, so NULL buffer with capacity 0 stays the "how many?"
  * probe and fails BUFFER_TOO_SMALL. */
+GRAPH_LITE_API
 graph_lite_status graph_lite_node_out_neighbors(const graph_lite_graph* graph, graph_lite_id id,
                                                 graph_lite_id* buffer, uint64_t capacity,
                                                 uint64_t* out_count);
+GRAPH_LITE_API
 graph_lite_status graph_lite_node_in_neighbors(const graph_lite_graph* graph, graph_lite_id id,
                                                graph_lite_id* buffer, uint64_t capacity,
                                                uint64_t* out_count);
@@ -283,6 +325,7 @@ graph_lite_status graph_lite_node_in_neighbors(const graph_lite_graph* graph, gr
  * element size (hash indices counted at bucket granularity, allocator overhead
  * ignored); adjacency and property storage included. For capacity planning,
  * not accounting. */
+GRAPH_LITE_API
 graph_lite_status graph_lite_graph_memory_usage(const graph_lite_graph* graph, uint64_t* out_bytes);
 
 /* ------------------------------------------------------------------------ *
@@ -321,11 +364,13 @@ typedef enum graph_lite_cursor_kind {
  * EDGES; for the other kinds it names the node, and NOT_FOUND is returned if it
  * is 0 or absent. NULL g or out, or an unknown kind -> INVALID_ARGUMENT.
  * Allocation failure -> OUT_OF_MEMORY. *out is set on success only. */
+GRAPH_LITE_API
 graph_lite_status graph_lite_cursor_open(const graph_lite_graph* g, graph_lite_cursor_kind kind,
                                          graph_lite_id node, graph_lite_cursor** out);
 
 /* Writes the next id to *out_id. At exhaustion returns GRAPH_LITE_ERR_END and
  * leaves *out_id untouched. NULL c or out_id -> INVALID_ARGUMENT. */
+GRAPH_LITE_API
 graph_lite_status graph_lite_cursor_next(graph_lite_cursor* c, graph_lite_id* out_id);
 
 /* Copies ALL remaining ids into buf (cap entries). *count is ALWAYS set to the
@@ -333,10 +378,12 @@ graph_lite_status graph_lite_cursor_next(graph_lite_cursor* c, graph_lite_id* ou
  * written and the cursor does not advance. On success the cursor is at its
  * end. buf may be NULL when cap == 0 (the size query); NULL buf with cap > 0,
  * or a NULL c or count -> INVALID_ARGUMENT. */
+GRAPH_LITE_API
 graph_lite_status graph_lite_cursor_drain(graph_lite_cursor* c, graph_lite_id* buf, uint64_t cap,
                                           uint64_t* count);
 
 /* Releases a cursor. NULL is accepted and ignored. */
+GRAPH_LITE_API
 void graph_lite_cursor_destroy(graph_lite_cursor* c);
 
 /* ------------------------------------------------------------------------ *
@@ -369,23 +416,24 @@ typedef enum graph_lite_walk_direction {
 /* Opens and computes a native walk. NULL graph/out, unknown order/direction,
  * or a missing start node -> INVALID_ARGUMENT or NOT_FOUND. Allocation failure
  * -> OUT_OF_MEMORY. *out is set on success only. */
-graph_lite_status graph_lite_traversal_open(const graph_lite_graph* graph, graph_lite_id start,
-                                            graph_lite_walk_order order,
-                                            graph_lite_walk_direction direction,
-                                            int filter_node_tag, graph_lite_tag node_tag,
-                                            int filter_edge_tag, graph_lite_tag edge_tag,
-                                            uint64_t max_depth, uint64_t max_results,
-                                            graph_lite_traversal** out);
+GRAPH_LITE_API graph_lite_status graph_lite_traversal_open(
+    const graph_lite_graph* graph, graph_lite_id start, graph_lite_walk_order order,
+    graph_lite_walk_direction direction, int filter_node_tag, graph_lite_tag node_tag,
+    int filter_edge_tag, graph_lite_tag edge_tag, uint64_t max_depth, uint64_t max_results,
+    graph_lite_traversal** out);
 
 /* Writes the next admitted node id; exhaustion returns GRAPH_LITE_ERR_END. */
+GRAPH_LITE_API
 graph_lite_status graph_lite_traversal_next(graph_lite_traversal* traversal, graph_lite_id* out_id);
 
 /* Writes 1 when a depth or result limit prevented an otherwise admissible
  * candidate, otherwise 0. NULL argument -> INVALID_ARGUMENT. */
+GRAPH_LITE_API
 graph_lite_status graph_lite_traversal_partial(const graph_lite_traversal* traversal,
                                                int* out_partial);
 
 /* Releases a traversal. NULL is accepted and ignored. */
+GRAPH_LITE_API
 void graph_lite_traversal_destroy(graph_lite_traversal* traversal);
 
 /* ------------------------------------------------------------------------ *
@@ -406,20 +454,20 @@ void graph_lite_traversal_destroy(graph_lite_traversal* traversal);
  * ------------------------------------------------------------------------ */
 
 /* Returns one admissible path; its hop count is not specified. */
-graph_lite_status graph_lite_any_path(const graph_lite_graph* graph, graph_lite_id start,
-                                      graph_lite_id target, graph_lite_walk_direction direction,
-                                      int filter_node_tag, graph_lite_tag node_tag,
-                                      int filter_edge_tag, graph_lite_tag edge_tag,
-                                      graph_lite_id* buffer, uint64_t capacity,
-                                      uint64_t* out_count);
+GRAPH_LITE_API graph_lite_status graph_lite_any_path(const graph_lite_graph* graph,
+                                                     graph_lite_id start, graph_lite_id target,
+                                                     graph_lite_walk_direction direction,
+                                                     int filter_node_tag, graph_lite_tag node_tag,
+                                                     int filter_edge_tag, graph_lite_tag edge_tag,
+                                                     graph_lite_id* buffer, uint64_t capacity,
+                                                     uint64_t* out_count);
 
 /* Returns an admissible path with the fewest edges (unweighted shortest path). */
-graph_lite_status graph_lite_shortest_path(const graph_lite_graph* graph, graph_lite_id start,
-                                           graph_lite_id target,
-                                           graph_lite_walk_direction direction, int filter_node_tag,
-                                           graph_lite_tag node_tag, int filter_edge_tag,
-                                           graph_lite_tag edge_tag, graph_lite_id* buffer,
-                                           uint64_t capacity, uint64_t* out_count);
+GRAPH_LITE_API graph_lite_status
+graph_lite_shortest_path(const graph_lite_graph* graph, graph_lite_id start, graph_lite_id target,
+                         graph_lite_walk_direction direction, int filter_node_tag,
+                         graph_lite_tag node_tag, int filter_edge_tag, graph_lite_tag edge_tag,
+                         graph_lite_id* buffer, uint64_t capacity, uint64_t* out_count);
 
 #ifdef __cplusplus
 } /* extern "C" */

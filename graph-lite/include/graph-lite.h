@@ -30,7 +30,7 @@
  *   discipline — see scripts/lint/graph-lite-vocabulary.ts.
  *
  * STATUS
- *   Model phase (v0.0.1-wip): the in-memory node/edge model with typed
+ *   Model phase (v0.1.0): the in-memory node/edge model with typed
  *   properties ships behind this ABI — create/destroy, add/remove, counts,
  *   adjacency listing and property storage — with stable, never-reused ids and
  *   both adjacency directions materialized contiguously (see benchmark.md).
@@ -47,9 +47,9 @@
 #include <stdint.h>
 
 #define GRAPH_LITE_VERSION_MAJOR 0
-#define GRAPH_LITE_VERSION_MINOR 0
-#define GRAPH_LITE_VERSION_PATCH 1
-#define GRAPH_LITE_VERSION_STRING "0.0.1"
+#define GRAPH_LITE_VERSION_MINOR 1
+#define GRAPH_LITE_VERSION_PATCH 0
+#define GRAPH_LITE_VERSION_STRING "0.1.0"
 
 #include <stddef.h>
 
@@ -100,14 +100,19 @@ typedef enum graph_lite_status {
     GRAPH_LITE_STATUS_FORCE_INT = 0x7fffffff
 } graph_lite_status;
 
-/* Version of the library actually linked, as three out-parameters.
- * Compare against the GRAPH_LITE_VERSION_* macros to catch a header/binary
- * mismatch at startup rather than as a corrupt read much later. Any pointer may
- * be NULL if the caller does not want that component. */
+/* Version of the library actually linked, as three out-parameters. Use
+ * graph_lite_check_version() to validate a header/binary pair at startup. Any
+ * pointer may be NULL if the caller does not want that component. */
 GRAPH_LITE_API
 void graph_lite_version(int* major, int* minor, int* patch);
 
-/* Version string of the linked library, e.g. "0.0.1". Static storage; the caller
+/* Checks that the loaded binary exactly matches the version the embedder was
+ * compiled for. Call once at startup with GRAPH_LITE_VERSION_MAJOR, _MINOR,
+ * and _PATCH; returns OK on a match or VERSION_MISMATCH otherwise. */
+GRAPH_LITE_API
+graph_lite_status graph_lite_check_version(int major, int minor, int patch);
+
+/* Version string of the linked library, e.g. "0.1.0". Static storage; the caller
  * does not free it. */
 GRAPH_LITE_API
 const char* graph_lite_version_string(void);

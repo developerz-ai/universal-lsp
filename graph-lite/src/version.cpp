@@ -4,15 +4,23 @@ extern "C" {
 
 void graph_lite_version(int* major, int* minor, int* patch) {
     if (major)
-        *major = GRAPH_LITE_VERSION_MAJOR;
+        *major = GRAPH_LITE_BINARY_VERSION_MAJOR;
     if (minor)
-        *minor = GRAPH_LITE_VERSION_MINOR;
+        *minor = GRAPH_LITE_BINARY_VERSION_MINOR;
     if (patch)
-        *patch = GRAPH_LITE_VERSION_PATCH;
+        *patch = GRAPH_LITE_BINARY_VERSION_PATCH;
+}
+
+graph_lite_status graph_lite_check_version(int major, int minor, int patch) {
+    if (major == GRAPH_LITE_BINARY_VERSION_MAJOR && minor == GRAPH_LITE_BINARY_VERSION_MINOR &&
+        patch == GRAPH_LITE_BINARY_VERSION_PATCH) {
+        return GRAPH_LITE_OK;
+    }
+    return GRAPH_LITE_ERR_VERSION_MISMATCH;
 }
 
 const char* graph_lite_version_string(void) {
-    return GRAPH_LITE_VERSION_STRING;
+    return GRAPH_LITE_BINARY_VERSION_STRING;
 }
 
 const char* graph_lite_status_string(graph_lite_status status) {

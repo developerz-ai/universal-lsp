@@ -68,23 +68,8 @@ export const GATE_STEPS: GateStep[] = [
   },
   {
     id: 'standalone',
-    label: 'graph-lite builds standalone',
-    argv: [
-      'cmake',
-      '-S',
-      'graph-lite',
-      '-B',
-      'build/graph-lite-standalone',
-      '-G',
-      'Ninja',
-      '-DCMAKE_BUILD_TYPE=Debug',
-    ],
-    scope: 'build',
-  },
-  {
-    id: 'standalone-build',
-    label: 'graph-lite standalone build',
-    argv: ['cmake', '--build', 'build/graph-lite-standalone'],
+    label: 'graph-lite extraction build and test',
+    argv: ['bun', 'run', 'scripts/standalone-graph-lite.ts'],
     scope: 'build',
   },
   {

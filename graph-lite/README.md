@@ -24,22 +24,32 @@ on top; nobody else has to care that the implementation is C++.
 
 The direction is deliberate: C++ has no stable ABI across compilers or standard
 library versions, so a C++ signature in a public header is unlinkable from another
-toolchain and unusable from any non-C++ runtime. Rationale and the rules that
-follow from it: [ADR 0004](../docs/architecture/decisions/0004-graph-lite-c-abi.md).
+toolchain and unusable from any non-C++ runtime.
 
-## Build it
+## Build and test
+
+From this directory, with CMake 3.24+ and Ninja installed:
 
 ```bash
 cmake -S . -B build -G Ninja
 cmake --build build
+ctest --test-dir build --output-on-failure
 ```
 
-Or vendor the directory and `add_subdirectory(graph-lite)` — it configures both
-ways, and the standalone path is verified on every change.
+The CTest executable is compiled as C and exercises graph creation, mutation,
+property access, and destruction through the public ABI.
 
-The resulting shared artifact is the C ABI for foreign runtimes. Runnable Ruby,
-Bun, and Python ABI probes live in [`../bindings/`](../bindings/); they are
-reference examples, not supported packages or wrapper libraries.
+## Vendor it
+
+Copy this directory into your source tree, then add it from the consumer's top-level
+`CMakeLists.txt`:
+
+```cmake
+add_subdirectory(third_party/graph-lite)
+target_link_libraries(my_program PRIVATE graph-lite::graph-lite)
+```
+
+The shared `graph-lite` artifact exposes the C ABI for foreign runtimes.
 
 ## Call it
 
@@ -56,24 +66,31 @@ graph_lite_version(&major, &minor, &patch);
 ```c
 /* C — build a tiny graph. Ids are 64-bit, 0 is never valid, and an id is never
    reused after removal. */
-graph_lite_graph* g = NULL;
-graph_lite_id a, b, e;
+graph_lite_graph* graph = NULL;
+graph_lite_id first, second, edge;
 
-graph_lite_graph_create(&g);
-graph_lite_add_node(g, /* tag */ 1, &a);
-graph_lite_add_node(g, /* tag */ 2, &b);
-graph_lite_add_edge(g, a, b, /* tag */ 7, &e);
-graph_lite_set_int(g, GRAPH_LITE_EDGE, e, "weight", 3);
-graph_lite_remove_node(g, b);   /* removes the edge too */
-graph_lite_graph_destroy(g);
+if (graph_lite_graph_create(&graph) != GRAPH_LITE_OK)
+    return 1;
+if (graph_lite_add_node(graph, 1, &first) != GRAPH_LITE_OK ||
+    graph_lite_add_node(graph, 2, &second) != GRAPH_LITE_OK ||
+    graph_lite_add_edge(graph, first, second, 7, &edge) != GRAPH_LITE_OK ||
+    graph_lite_set_int(graph, GRAPH_LITE_EDGE, edge, "weight", 3) != GRAPH_LITE_OK) {
+    graph_lite_graph_destroy(graph);
+    return 1;
+}
+graph_lite_remove_node(graph, second); /* removes the edge too */
+graph_lite_graph_destroy(graph);
 ```
 
 ```cpp
 // C++ — same library, nicer surface, nothing extra exported
 #include "graph-lite.hpp"
 
-const auto v = graph_lite::version();
-graph_lite::check(some_call());   // throws graph_lite::Error, which carries the code
+graph_lite::Graph graph;
+const auto first = graph.add_node(1);
+const auto second = graph.add_node(2);
+const auto edge = graph.add_edge(first, second, 7);
+graph.set_int(GRAPH_LITE_EDGE, edge, "weight", 3);
 ```
 
 Every one of those binds the same entry points. That is the point of the C ABI:

@@ -136,7 +136,7 @@ jobs:
       - name: Test
         run: ctest --preset dev
 
-  # graph-lite must configure and build with no knowledge of this repo. Phase 14
+  # graph-lite must configure, build, and test with no knowledge of this repo. Phase 14
   # (extract it into its own repository) is only cheap while this job is green;
   # it is the cheapest possible proof, and it runs on every PR.
   standalone:
@@ -151,10 +151,11 @@ jobs:
           persist-credentials: false
       - name: Install toolchain
         run: sudo apt-get update && sudo apt-get install -y ninja-build
-      - name: Configure standalone
-        run: cmake -S graph-lite -B build/graph-lite-standalone -G Ninja -DCMAKE_BUILD_TYPE=Debug
-      - name: Build standalone
-        run: cmake --build build/graph-lite-standalone
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
+        with:
+          bun-version: ${{ env.BUN_VERSION }}
+      - name: Verify isolated standalone tree
+        run: bun run scripts/standalone-graph-lite.ts
 
   # ASan + UBSan from the first commit, not after the first mystery crash: the
   # hot paths are arena/pmr allocation and CSR indices, where a use-after-free

@@ -8,7 +8,8 @@
 cmake_minimum_required(VERSION 3.24)
 
 if(CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR)
-    project(graph-lite VERSION 0.0.1 DESCRIPTION "Embeddable property-graph library" LANGUAGES CXX)
+    project(graph-lite VERSION 0.0.1 DESCRIPTION "Embeddable property-graph library" LANGUAGES C CXX)
+    include(CTest)
     set(CMAKE_CXX_STANDARD 20)
     set(CMAKE_CXX_STANDARD_REQUIRED ON)
     add_library(ulsp_warnings INTERFACE)
@@ -47,6 +48,14 @@ set_target_properties(graph-lite PROPERTIES
 # graph_lite_bench`), not something every build should pay for.
 add_executable(graph_lite_bench EXCLUDE_FROM_ALL bench/store_bench.cpp)
 target_link_libraries(graph_lite_bench PRIVATE graph-lite ulsp_warnings ulsp_sanitizers)
+
+if(CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR)
+    # This C executable is the extraction smoke test: the public header must
+    # compile as C and a foreign caller must be able to use the ABI lifecycle.
+    add_executable(graph_lite_embedding_smoke tests/embedding_smoke_test.c)
+    target_link_libraries(graph_lite_embedding_smoke PRIVATE graph-lite)
+    add_test(NAME graph_lite_embedding_smoke COMMAND graph_lite_embedding_smoke)
+endif()
 
 # No `target_link_libraries(graph-lite PUBLIC <anything from this repo>)`, ever.
 # Dependencies flow one way: engine -> graph-lite. Guard: scripts/lint/graph-lite-boundary.ts

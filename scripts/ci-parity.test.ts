@@ -16,6 +16,11 @@ describe('CI parity', () => {
     expect(missing).toEqual([]);
   });
 
+  it('CI verifies graph-lite from a copied standalone tree', () => {
+    expect(ci).toContain('bun run scripts/standalone-graph-lite.ts');
+    expect(ci).toContain('oven-sh/setup-bun');
+  });
+
   it('CI pins runners deliberately', () => {
     // Changing where CI runs means changing this assertion in the same commit,
     // with a human deciding. A "temporary" runner switch nobody reverses is how

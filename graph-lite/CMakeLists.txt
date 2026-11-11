@@ -36,7 +36,11 @@ target_include_directories(graph-lite PUBLIC
 
 target_compile_features(graph-lite PUBLIC cxx_std_20)
 target_link_libraries(graph-lite PRIVATE ulsp_warnings ulsp_sanitizers)
-set_target_properties(graph-lite PROPERTIES VERSION ${GRAPH_LITE_VERSION})
+target_compile_definitions(graph-lite PRIVATE GRAPH_LITE_BUILD)
+set_target_properties(graph-lite PROPERTIES
+    CXX_VISIBILITY_PRESET hidden
+    VISIBILITY_INLINES_HIDDEN YES
+    VERSION ${GRAPH_LITE_VERSION})
 
 # The numbers behind docs/graph-lite/benchmark.md come from here. EXCLUDE_FROM_ALL:
 # measuring is an explicit act (`cmake --build --preset release --target

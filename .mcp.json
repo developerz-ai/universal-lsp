@@ -13,13 +13,6 @@
         "SENTRY_ACCESS_TOKEN": "${SENTRY_ACCESS_TOKEN}",
         "SENTRY_HOST": "${SENTRY_HOST}"
       }
-    },
-    "developerz": {
-      "type": "http",
-      "url": "https://mcp.developerz.ai/v1/mcp",
-      "headers": {
-        "Authorization": "Bearer ${DEVELOPERZ_API_KEY}"
-      }
     }
   }
 }

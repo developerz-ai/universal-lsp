@@ -65,6 +65,8 @@ const BARE_TRACKER = new RegExp(
   `(?<![\\w./-])(?:infrastructure|${DOMAIN.replace('.', '\\.')}|dz) ?#\\d`,
   'i',
 );
+// A workspace checkout under someone's home names them (`~/workspace/<owner>/…`); a dotfile path does not.
+const WORKSPACE_PATH = /(?:^|[^\w.-])~\/workspace\/[\w-][\w.-]*\//;
 // CI's and the tests' generic users are nobody's machine.
 const HOME_PATH =
   /(?:^|[^\w.-])\/(?:home|Users)\/(?!(?:runner|user|app|tester|sdk|someone|u|ubuntu|alice|bob)\b)[\w.-]+/;
@@ -104,7 +106,7 @@ export function violations(text: string, words: readonly RegExp[]): string[] {
   if (hosts.some((host) => !PUBLIC_HOSTS.has(host.toLowerCase())))
     rules.push('internal host on our own domain');
   if (SETUP_MODE.test(text)) rules.push('setup-mode name');
-  if (HOME_PATH.test(text)) rules.push("someone's home directory");
+  if (HOME_PATH.test(text) || WORKSPACE_PATH.test(text)) rules.push("someone's home directory");
   const privateRepo = [...text.matchAll(ORG_REPO)].some(
     (m) =>
       !PUBLIC_REPOS.has(
@@ -139,7 +141,7 @@ test('no tracked file names anything private', () => {
     process.env[REQUIRED_ENV] === '1',
   );
   if (words.length === 0)
-    console.warn(`public-tree: ${PRIVATE_WORDS_ENV} is unset, private words not checked`);
+    console.warn(`public-tree: ${PRIVATE_WORDS_ENV} is unset or empty, private words not checked`);
   const files = trackedFiles();
   expect(files.includes(SELF)).toBe(true);
   let read = 0;
@@ -186,6 +188,10 @@ test("someone's home directory and the setup mode fire", () => {
     "someone's home directory",
   ]);
   expect(violations(`ANDROID_HOME=${['', 'home', 'sdk'].join('/')}`, [])).toEqual([]);
+  expect(
+    violations(`see ${['~', 'workspace', 'jane', 'repo', 'docs', 'a.md'].join('/')}`, []),
+  ).toEqual(["someone's home directory"]);
+  expect(violations('keys live in ~/.ssh/ and ~/.config/tool.toml', [])).toEqual([]);
   expect(violations(`a ${['RUNNER', 'DZ'].reverse().join('-')} box`, [])).toEqual([
     'setup-mode name',
   ]);

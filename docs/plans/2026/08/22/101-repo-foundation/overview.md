@@ -37,10 +37,9 @@ can start with nothing left to decide about tooling.
 
 ## Risks / open questions
 
-- **Runners.** CI is on `ubuntu-latest`, not the house Blacksmith standard,
-  because this repo is not enrolled and an un-enrolled label yields *absent*
-  checks rather than red ones. Revisit on enrolment; `ci-parity.test.ts` pins it
-  so the change is deliberate.
+- **Runners.** CI is on `ubuntu-latest`, deliberately: a runner label that
+  nothing serves yields *absent* checks rather than red ones. `ci-parity.test.ts`
+  pins it so any change is deliberate.
 - **GoogleTest fetch.** Pinned, with a system-package fallback, so an offline box
   and CI both work. Revisit if the fetch becomes the slowest part of a cold CI run.
 - **`clang-tidy` is not installed on this dev box.** CI runs it regardless;

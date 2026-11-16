@@ -17,12 +17,10 @@ env:
 
 # RUNNERS: ubuntu-latest, everywhere, deliberately.
 #
-# The house standard is Blacksmith (unmetered, faster disks, sticky caches). This
-# repo is not enrolled, and an un-enrolled Blacksmith label does not fail — no
-# runner is ever assigned, so the required check is ABSENT rather than red and
-# nothing can merge, with no logs to explain why. Moving CI to Blacksmith means
-# enrolling the repo AND updating `scripts/ci-parity.test.ts` in the same commit,
-# with a human deciding.
+# A runner label that nothing serves does not fail: no runner is ever assigned,
+# so the required check is ABSENT rather than red and nothing can merge, with no
+# logs to explain why. Moving CI to other runners means updating
+# `scripts/ci-parity.test.ts` in the same commit, with a human deciding.
 #
 # Every command below is defined once, in `scripts/lib/gate.ts`, and run locally
 # by `bin/check`. ci-parity.test.ts fails the build if the two drift: green

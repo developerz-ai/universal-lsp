@@ -1,9 +1,9 @@
 version: 2
 updates:
-  # Actions only. The shipped binaries have no runtime dependencies, and the one
-  # build-time dependency (GoogleTest) is pinned in cmake/Dependencies.cmake
-  # deliberately — a floating test framework makes a red run ambiguous between
-  # "my change" and "their release".
+  # Actions and the repo tooling's bun manifest only. The shipped binaries have no
+  # runtime dependencies, and the one build-time dependency (GoogleTest) is pinned in
+  # cmake/Dependencies.cmake deliberately — a floating test framework makes a red run
+  # ambiguous between "my change" and "their release".
   - package-ecosystem: github-actions
     directory: /
     schedule: { interval: weekly }
@@ -11,4 +11,15 @@ updates:
     commit-message: { prefix: "chore" }
     groups:
       actions:
+        patterns: ["*"]
+
+  # package.json + bun.lock: devDependencies of the Bun-TS automation under scripts/
+  # (Biome). Nothing here ships in a binary.
+  - package-ecosystem: bun
+    directory: /
+    schedule: { interval: weekly }
+    cooldown: { default-days: 14 } # a compromised release gets caught first; security updates are unaffected
+    commit-message: { prefix: "chore" }
+    groups:
+      bun:
         patterns: ["*"]

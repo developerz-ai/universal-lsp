@@ -10,11 +10,11 @@
 
 A node is an id, a type tag, and a property map.
 
-| Field | Notes |
-|---|---|
-| id | Stable for the lifetime of the store, including across persistence. Callers hold ids; the library never reuses one after a delete. |
-| type | An opaque `uint64_t` tag the caller defines. Compared by equality, never interpreted. 0 is an ordinary tag. |
-| properties | Arbitrary key/value pairs. |
+| Field      | Notes                                                                                                                              |
+| ---------- | ---------------------------------------------------------------------------------------------------------------------------------- |
+| id         | Stable for the lifetime of the store, including across persistence. Callers hold ids; the library never reuses one after a delete. |
+| type       | An opaque `uint64_t` tag the caller defines. Compared by equality, never interpreted. 0 is an ordinary tag.                        |
+| properties | Arbitrary key/value pairs.                                                                                                         |
 
 Ids being stable across a save/load cycle is a **one-way door**: callers will
 persist them in their own state the moment the feature exists, so the guarantee
@@ -38,11 +38,11 @@ to compile, it reads garbage.
 
 An edge is directed, typed, and carries properties of its own.
 
-| Field | Notes |
-|---|---|
-| from, to | Node ids. An edge to a deleted node must never be readable: removing a node removes every incident edge (in both directions) and their properties. |
-| type | An opaque tag, same rules as node types. |
-| properties | Arbitrary key/value pairs. |
+| Field      | Notes                                                                                                                                              |
+| ---------- | -------------------------------------------------------------------------------------------------------------------------------------------------- |
+| from, to   | Node ids. An edge to a deleted node must never be readable: removing a node removes every incident edge (in both directions) and their properties. |
+| type       | An opaque tag, same rules as node types.                                                                                                           |
+| properties | Arbitrary key/value pairs.                                                                                                                         |
 
 Self-loops and parallel edges are allowed; a self-loop is listed once as outgoing
 and once as incoming. Edge ids ascend within each node's lists.
@@ -69,9 +69,9 @@ property bytes into cache lines it does not read.
 
 ## What is deliberately absent
 
-| Absent | Why |
-|---|---|
-| Schema / constraints | A caller that wants them can enforce them at its own seam. Baking them in makes every write pay for a check most callers do not want. |
-| Node labels beyond one type tag | Multi-label is a modelling convenience that costs an index. Add it when a real caller cannot express itself without it. |
-| A query language | See [traversal.md](traversal.md). |
-| Transactions across processes | Embedded, in-process, single-writer for v1. |
+| Absent                          | Why                                                                                                                                   |
+| ------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
+| Schema / constraints            | A caller that wants them can enforce them at its own seam. Baking them in makes every write pay for a check most callers do not want. |
+| Node labels beyond one type tag | Multi-label is a modelling convenience that costs an index. Add it when a real caller cannot express itself without it.               |
+| A query language                | See [traversal.md](traversal.md).                                                                                                     |
+| Transactions across processes   | Embedded, in-process, single-writer for v1.                                                                                           |

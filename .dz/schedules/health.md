@@ -2,10 +2,10 @@
 
 Weekly (Monday) checkup fired by `schedules: health`: the failures no issue or PR announces.
 
-| Signal | Command | Healthy |
-|---|---|---|
-| `main` is green | `gh run list --workflow ci.yml --branch main --event push --limit 1 --json conclusion,headSha,url`, then `git rev-parse origin/main` | `success` on the `origin/main` tip; a null conclusion or another sha is no verdict |
-| Dependabot is not stuck | `gh pr list --app dependabot --state open --limit 100 --json number,updatedAt,statusCheckRollup` | no PR with failed checks and more than 7 days since `updatedAt` |
+| Signal                  | Command                                                                                                                              | Healthy                                                                            |
+| ----------------------- | ------------------------------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------- |
+| `main` is green         | `gh run list --workflow ci.yml --branch main --event push --limit 1 --json conclusion,headSha,url`, then `git rev-parse origin/main` | `success` on the `origin/main` tip; a null conclusion or another sha is no verdict |
+| Dependabot is not stuck | `gh pr list --app dependabot --state open --limit 100 --json number,updatedAt,statusCheckRollup`                                     | no PR with failed checks and more than 7 days since `updatedAt`                    |
 
 ## Rows
 

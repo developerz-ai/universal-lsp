@@ -20,13 +20,13 @@ would cost.
 
 Review discipline does not catch this. Three mechanisms do:
 
-| Mechanism | Catches |
-|---|---|
+| Mechanism                               | Catches                                                                                                                                                                                                         |
+| --------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `scripts/lint/graph-lite-vocabulary.ts` | a borrowed concept name in the library, its tests, or its docs — **tokenising camelCase and snake_case**, because `\bsymbol\b` does not match `SymbolNode` and `SymbolNode` is exactly the shape the leak takes |
-| `scripts/lint/graph-lite-boundary.ts` | an `#include` of a consumer header, or a `target_link_libraries` against a repo target — both of which compile perfectly |
-| CI job `standalone` | anything that makes `cmake -S graph-lite` stop working, on every PR |
+| `scripts/lint/graph-lite-boundary.ts`   | an `#include` of a consumer header, or a `target_link_libraries` against a repo target — both of which compile perfectly                                                                                        |
+| CI job `standalone`                     | anything that makes `cmake -S graph-lite` stop working, on every PR                                                                                                                                             |
 
-Each guard has its own test asserting it flags a bad sample *and* passes a good
+Each guard has its own test asserting it flags a bad sample _and_ passes a good
 one. A guard that silently matches nothing is worse than no guard, because it
 looks green.
 

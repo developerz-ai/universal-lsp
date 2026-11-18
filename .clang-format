@@ -18,15 +18,15 @@ IncludeBlocks: Regroup
 IncludeCategories:
   # Own header first, then graph-lite (the boundary we care about), then the
   # rest of the repo, then the standard library.
-  - Regex:    '^"graph-lite\.h"$'
+  - Regex: '^"graph-lite\.h"$'
     Priority: 2
-  - Regex:    '^"(engine|analysis|daemon|cli)/'
+  - Regex: '^"(engine|analysis|daemon|cli)/'
     Priority: 3
-  - Regex:    '^<[a-z_]+>$'
+  - Regex: "^<[a-z_]+>$"
     Priority: 5
-  - Regex:    '^<.*>$'
+  - Regex: "^<.*>$"
     Priority: 4
-  - Regex:    '.*'
+  - Regex: ".*"
     Priority: 3
 SortIncludes: CaseSensitive
 SeparateDefinitionBlocks: Always

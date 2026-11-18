@@ -57,10 +57,10 @@ rule below exists to make that loop fast and safe.
 
 Two products, one repo, one direction of dependency.
 
-| | What | Depends on |
-|---|---|---|
-| **graph-lite** | Embeddable property-graph library. Typed nodes, typed directed edges, properties. CSR storage, native traversal, mmap-friendly persistence. **Public surface is a C ABI** (`graph-lite.h`); `graph-lite.hpp` is header-only C++ ergonomics over it. MIT. | nothing |
-| **Universal LSP** | The language server: stdio LSP + MCP + batch CLI, tree-sitter parsing, native scope/type engines, Lua plugins. Apache-2.0. | graph-lite |
+|                   | What                                                                                                                                                                                                                                                     | Depends on |
+| ----------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
+| **graph-lite**    | Embeddable property-graph library. Typed nodes, typed directed edges, properties. CSR storage, native traversal, mmap-friendly persistence. **Public surface is a C ABI** (`graph-lite.h`); `graph-lite.hpp` is header-only C++ ergonomics over it. MIT. | nothing    |
+| **Universal LSP** | The language server: stdio LSP + MCP + batch CLI, tree-sitter parsing, native scope/type engines, Lua plugins. Apache-2.0.                                                                                                                               | graph-lite |
 
 **The doctrine that outranks instinct:**
 
@@ -79,39 +79,39 @@ Two products, one repo, one direction of dependency.
 
 ## Layout
 
-| Path | What | Notes |
-|---|---|---|
-| `graph-lite/` | The library. Own LICENSE, own version, own presets. | Must build standalone: `cmake -S graph-lite -B build/x -G Ninja` |
-| `engine/` | Daemon core: transport, sessions, workspaces, worker pools, scheduler, file-watch pipeline, Lua embedding, MCP front-end. | |
-| `analysis/` | Translation layer: tree-sitter + plugin rules → graph-lite's generic API. | **The only place both vocabularies may meet.** |
-| `plugins/` | One dir per official language, Lua rule files. | Community plugins live out of repo, by design. |
-| `daemon/` `cli/` | Thin entrypoints. Wiring, no logic. | |
-| `tests/` | `graph-lite/` · `engine/` · `plugins/` — mirrors the boundaries. | |
-| `docs/` | Same boundary. `docs/graph-lite/` reads as if standalone. | |
-| `scripts/` | Bun-TS automation: the gate, the change detector, the guards. | `bun run scripts/help.ts` |
-| `bin/` | Thin shims over `scripts/`. | |
+| Path             | What                                                                                                                      | Notes                                                            |
+| ---------------- | ------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------- |
+| `graph-lite/`    | The library. Own LICENSE, own version, own presets.                                                                       | Must build standalone: `cmake -S graph-lite -B build/x -G Ninja` |
+| `engine/`        | Daemon core: transport, sessions, workspaces, worker pools, scheduler, file-watch pipeline, Lua embedding, MCP front-end. |                                                                  |
+| `analysis/`      | Translation layer: tree-sitter + plugin rules → graph-lite's generic API.                                                 | **The only place both vocabularies may meet.**                   |
+| `plugins/`       | One dir per official language, Lua rule files.                                                                            | Community plugins live out of repo, by design.                   |
+| `daemon/` `cli/` | Thin entrypoints. Wiring, no logic.                                                                                       |                                                                  |
+| `tests/`         | `graph-lite/` · `engine/` · `plugins/` — mirrors the boundaries.                                                          |                                                                  |
+| `docs/`          | Same boundary. `docs/graph-lite/` reads as if standalone.                                                                 |                                                                  |
+| `scripts/`       | Bun-TS automation: the gate, the change detector, the guards.                                                             | `bun run scripts/help.ts`                                        |
+| `bin/`           | Thin shims over `scripts/`.                                                                                               |                                                                  |
 
 ## Stack
 
-| Layer | Choice | The non-obvious constraint |
-|---|---|---|
-| Language | C++20 | No Boost, except possibly `Boost.Asio` for the daemon event loop. Everything else is the standard library. |
-| Build | CMake ≥ 3.24 + Ninja, presets only | `dev` · `asan` · `release`. Never hand-roll a `cmake` invocation that a preset covers. |
-| Tests | GoogleTest + CTest | System GTest if present, pinned fetch otherwise. |
-| Memory | arena / `std::pmr` on hot paths | Which is exactly why ASan + UBSan run on every PR, not after the first mystery crash. |
-| Parsing | tree-sitter (C) | Grammars are authored in JS and compiled to C — a plugin-author build step, not a runtime dependency. |
-| Plugins | Lua | Declarative rule tables + small pure callbacks. Callbacks get an instruction/time budget; a runaway one must not hang the daemon. |
-| Tooling | Bun + TypeScript under `scripts/` | Repo automation only. Ships in no binary. |
+| Layer    | Choice                             | The non-obvious constraint                                                                                                        |
+| -------- | ---------------------------------- | --------------------------------------------------------------------------------------------------------------------------------- |
+| Language | C++20                              | No Boost, except possibly `Boost.Asio` for the daemon event loop. Everything else is the standard library.                        |
+| Build    | CMake ≥ 3.24 + Ninja, presets only | `dev` · `asan` · `release`. Never hand-roll a `cmake` invocation that a preset covers.                                            |
+| Tests    | GoogleTest + CTest                 | System GTest if present, pinned fetch otherwise.                                                                                  |
+| Memory   | arena / `std::pmr` on hot paths    | Which is exactly why ASan + UBSan run on every PR, not after the first mystery crash.                                             |
+| Parsing  | tree-sitter (C)                    | Grammars are authored in JS and compiled to C — a plugin-author build step, not a runtime dependency.                             |
+| Plugins  | Lua                                | Declarative rule tables + small pure callbacks. Callbacks get an instruction/time budget; a runaway one must not hang the daemon. |
+| Tooling  | Bun + TypeScript under `scripts/`  | Repo automation only. Ships in no binary.                                                                                         |
 
 ## The loop
 
 Three tiers. Run the tightest one that answers your question.
 
-| Tier | Command | Scope | Budget |
-|---|---|---|---|
-| Tightest | `bin/check --files <paths>` | format + guards for those files | < 3s |
-| Scoped | `bin/check --changed` | the affected subsystems, dependents included | < 30s |
-| Full gate | `bin/check` | everything, sanitizers included — the CI mirror | ~1 min |
+| Tier      | Command                     | Scope                                           | Budget |
+| --------- | --------------------------- | ----------------------------------------------- | ------ |
+| Tightest  | `bin/check --files <paths>` | format + guards for those files                 | < 3s   |
+| Scoped    | `bin/check --changed`       | the affected subsystems, dependents included    | < 30s  |
+| Full gate | `bin/check`                 | everything, sanitizers included — the CI mirror | ~1 min |
 
 **Do NOT reflexively run `bin/check`.** It configures three build trees and runs
 the suite twice, once under ASan + UBSan. Run it once, before pushing.
@@ -120,7 +120,7 @@ the suite twice, once under ASan + UBSan. Run it once, before pushing.
 Never trust a piped exit code — `cmd | tail; echo $?` reports `tail`'s status.
 
 **What the scoped tiers do NOT see:** a break in an unaffected subsystem, and
-anything only the sanitizer build catches. That is an acceptable trade *because*
+anything only the sanitizer build catches. That is an acceptable trade _because_
 the full gate runs before push.
 
 ## Commands
@@ -167,7 +167,7 @@ bun run scripts/help.ts         # the full catalog
 ## Preventive rules (these bite before any symptom appears)
 
 - **A `Position` offset is UTF-16 code units on the wire and something else
-  internally.** Get the conversion wrong and the failure is a *panic on an emoji*
+  internally.** Get the conversion wrong and the failure is a _panic on an emoji_
   in someone else's editor, months later — this exact bug shipped in a production
   Rust language server. Convert at the boundary, negotiate `positionEncoding` at
   `initialize`, and test astral-plane characters from the first commit.
@@ -193,18 +193,18 @@ bun run scripts/help.ts         # the full catalog
 
 ## Docs index — read before touching that area
 
-| Read | Before |
-|---|---|
-| [`docs/spec.md`](docs/spec.md) | anything. It is the scope contract. |
-| [`docs/research/things-to-know.md`](docs/research/things-to-know.md) | designing a subsystem — it is the list of mistakes already paid for |
-| [`docs/graph-lite/README.md`](docs/graph-lite/README.md) · [`boundary`](docs/architecture/graph-lite-boundary.md) | touching `graph-lite/` |
-| [`docs/engine/position-encoding.md`](docs/engine/position-encoding.md) | anything touching offsets, ranges or text |
-| [`docs/engine/filesystem-changes.md`](docs/engine/filesystem-changes.md) | the watcher, debounce, or reindex scheduling |
-| [`docs/plugins/authoring.md`](docs/plugins/authoring.md) | writing or changing a language plugin |
-| [`docs/standards/testing.md`](docs/standards/testing.md) | adding a test suite |
-| [`docs/standards/code-style.md`](docs/standards/code-style.md) | the C++ conventions the linters do not encode |
-| [`docs/gotchas.md`](docs/gotchas.md) | you have a symptom and want the cause |
-| [`docs/architecture/decisions/`](docs/architecture/decisions/) | reopening a settled design question |
+| Read                                                                                                              | Before                                                              |
+| ----------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------- |
+| [`docs/spec.md`](docs/spec.md)                                                                                    | anything. It is the scope contract.                                 |
+| [`docs/research/things-to-know.md`](docs/research/things-to-know.md)                                              | designing a subsystem — it is the list of mistakes already paid for |
+| [`docs/graph-lite/README.md`](docs/graph-lite/README.md) · [`boundary`](docs/architecture/graph-lite-boundary.md) | touching `graph-lite/`                                              |
+| [`docs/engine/position-encoding.md`](docs/engine/position-encoding.md)                                            | anything touching offsets, ranges or text                           |
+| [`docs/engine/filesystem-changes.md`](docs/engine/filesystem-changes.md)                                          | the watcher, debounce, or reindex scheduling                        |
+| [`docs/plugins/authoring.md`](docs/plugins/authoring.md)                                                          | writing or changing a language plugin                               |
+| [`docs/standards/testing.md`](docs/standards/testing.md)                                                          | adding a test suite                                                 |
+| [`docs/standards/code-style.md`](docs/standards/code-style.md)                                                    | the C++ conventions the linters do not encode                       |
+| [`docs/gotchas.md`](docs/gotchas.md)                                                                              | you have a symptom and want the cause                               |
+| [`docs/architecture/decisions/`](docs/architecture/decisions/)                                                    | reopening a settled design question                                 |
 
 Conventions this repo inherits: `../gold-standards-in-ai/docs/` (not vendored —
 a sibling checkout).
@@ -221,12 +221,12 @@ a sibling checkout).
 
 ## What NOT to build
 
-| Rejected | Why |
-|---|---|
-| Proxying to an existing language server | Deleting that dependency IS the product. A "temporary" proxy would become the architecture. |
-| A query language for graph-lite (Cypher/SQL/Datalog) | Not until real usage says which queries matter. A programmatic traversal API first. |
-| SQL recursive CTEs for traversal | Benchmarked 100×+ slower — relational engines cannot keep visited-set state across iterations. Traversal stays native. |
-| TCP/socket LSP transport as a first-class feature | stdio is what every editor and agent harness actually spawns. |
-| Cross-session priority/fairness scheduling | FIFO per pool, deliberately. One aggressive agent session CAN delay another's request; that is a known, accepted v1 trade. Cheap refinement later: two queues (focused document vs everything else). |
-| Distributed / clustered / server-mode graph-lite | Embedded, in-process, forever. |
-| Feature flags | N flags = 2^N states nobody has run. Use a config record with a schema and an owner, or ship one path. |
+| Rejected                                             | Why                                                                                                                                                                                                  |
+| ---------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Proxying to an existing language server              | Deleting that dependency IS the product. A "temporary" proxy would become the architecture.                                                                                                          |
+| A query language for graph-lite (Cypher/SQL/Datalog) | Not until real usage says which queries matter. A programmatic traversal API first.                                                                                                                  |
+| SQL recursive CTEs for traversal                     | Benchmarked 100×+ slower — relational engines cannot keep visited-set state across iterations. Traversal stays native.                                                                               |
+| TCP/socket LSP transport as a first-class feature    | stdio is what every editor and agent harness actually spawns.                                                                                                                                        |
+| Cross-session priority/fairness scheduling           | FIFO per pool, deliberately. One aggressive agent session CAN delay another's request; that is a known, accepted v1 trade. Cheap refinement later: two queues (focused document vs everything else). |
+| Distributed / clustered / server-mode graph-lite     | Embedded, in-process, forever.                                                                                                                                                                       |
+| Feature flags                                        | N flags = 2^N states nobody has run. Use a config record with a schema and an owner, or ship one path.                                                                                               |

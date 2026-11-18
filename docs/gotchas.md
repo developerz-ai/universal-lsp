@@ -16,7 +16,7 @@ when it stops being true.
 **Fix:** a separate source root needs its own `CMakePresets.json` (as
 `graph-lite/` has), or an explicit `cmake -S <dir> -B <dir>` invocation. Check
 your CMake version against `"version"` at the top of the presets file.
-*(2026-08)*
+_(2026-08)_
 
 ---
 
@@ -26,7 +26,7 @@ your CMake version against `"version"` at the top of the presets file.
 `add_test` instead of `ulsp_add_test`, so `gtest_discover_tests` never ran.
 **Fix:** `bin/dev test` builds first, then runs. `bin/dev doctor` reports the
 discovered test count as a row. Register suites with the helper.
-*(2026-08)*
+_(2026-08)_
 
 ---
 
@@ -36,7 +36,7 @@ discovered test count as a row. Register suites with the helper.
 build tree.
 **Fix:** `bin/setup` symlinks it to `build/dev/`. `bin/dev doctor` has a row for
 it.
-*(2026-08)*
+_(2026-08)_
 
 ---
 
@@ -48,7 +48,7 @@ that is exactly the shape a leak takes. Consequence: `SymbolNode` is flagged,
 `symbolic` is not.
 **Fix:** rename to the generic equivalent. Do not add an allowlist entry — the
 translation belongs in `analysis/`.
-*(2026-08)*
+_(2026-08)_
 
 ---
 
@@ -58,7 +58,7 @@ translation belongs in `analysis/`.
 command strings. `scripts/ci-parity.test.ts` fails when they diverge.
 **Fix:** change `gate.ts` and `ci.yml` in the same commit, then
 `bun test scripts/`.
-*(2026-08)*
+_(2026-08)_
 
 ---
 
@@ -69,7 +69,7 @@ not fail — no runner is ever assigned, so the required check is **absent** rat
 than red, and nothing can merge on any branch.
 **Fix:** `runs-on: ubuntu-latest`, which is what `ci-parity.test.ts` pins. Moving
 off it means enrolling the repo and updating that assertion in the same commit.
-*(2026-08)*
+_(2026-08)_
 
 ---
 
@@ -82,7 +82,7 @@ It now globs the filesystem, and zero matches is a **failure**, not a pass.
 **Also check:** your `clang-format` major version. The repo pins 18; the script
 refuses any other, because output differs between majors and an unpinned
 formatter makes "formatted" mean two different things.
-*(2026-08)*
+_(2026-08)_
 
 ---
 
@@ -94,4 +94,4 @@ downstream read empty as "nothing changed". Under-detection is the dangerous
 direction: nothing errors.
 **Fix:** `changedFiles()` returns `UNKNOWN_BASE`, and `computeAffected` treats it
 as a full-gate path. Pinned by `scripts/lib/affected.test.ts`.
-*(2026-08)*
+_(2026-08)_

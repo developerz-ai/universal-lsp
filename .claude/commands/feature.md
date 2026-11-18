@@ -1,4 +1,5 @@
 ---
+
 description: Take a feature from idea to merged and verified — explore, build, test, PR
 argument-hint: [what to build, or an issue number]
 allowed-tools: Read, Write, Edit, Glob, Grep, Bash, Task, Skill
@@ -10,6 +11,7 @@ allowed-tools: Read, Write, Edit, Glob, Grep, Bash, Task, Skill
 not done.
 
 ## Goal
+
 $ARGUMENTS
 
 ## Steps

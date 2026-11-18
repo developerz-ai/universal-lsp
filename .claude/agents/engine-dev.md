@@ -1,4 +1,5 @@
 ---
+
 name: engine-dev
 description: Owns engine/, daemon/, cli/ and tests/engine/ — transport, sessions, workers, scheduler, file watching, Lua embedding, MCP.
 model: opus

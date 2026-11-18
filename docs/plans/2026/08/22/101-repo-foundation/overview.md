@@ -38,7 +38,7 @@ can start with nothing left to decide about tooling.
 ## Risks / open questions
 
 - **Runners.** CI is on `ubuntu-latest`, deliberately: a runner label that
-  nothing serves yields *absent* checks rather than red ones. `ci-parity.test.ts`
+  nothing serves yields _absent_ checks rather than red ones. `ci-parity.test.ts`
   pins it so any change is deliberate.
 - **GoogleTest fetch.** Pinned, with a system-package fallback, so an offline box
   and CI both work. Revisit if the fetch becomes the slowest part of a cold CI run.

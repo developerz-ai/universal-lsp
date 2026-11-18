@@ -4,12 +4,12 @@ One file per decision that has consequences someone will otherwise re-litigate.
 Numbered, dated, never deleted — a superseded ADR gets a `Superseded by` line, so
 the reasoning survives the reversal.
 
-| # | Decision | Status |
-|---|---|---|
-| [0001](0001-record-architecture-decisions.md) | Record architecture decisions | Accepted |
+| #                                               | Decision                                                            | Status   |
+| ----------------------------------------------- | ------------------------------------------------------------------- | -------- |
+| [0001](0001-record-architecture-decisions.md)   | Record architecture decisions                                       | Accepted |
 | [0002](0002-graph-lite-lives-here-under-mit.md) | graph-lite develops in this repo, under its own license and version | Accepted |
-| [0003](0003-no-external-language-servers.md) | No external language-server processes, ever | Accepted |
-| [0004](0004-graph-lite-c-abi.md) | graph-lite's embedding surface is a stable C ABI | Accepted |
+| [0003](0003-no-external-language-servers.md)    | No external language-server processes, ever                         | Accepted |
+| [0004](0004-graph-lite-c-abi.md)                | graph-lite's embedding surface is a stable C ABI                    | Accepted |
 
 ## When to write one
 
@@ -30,14 +30,18 @@ consequence.
 **Date:** YYYY-MM-DD
 
 ## Context
+
 What is true that forces a choice. Facts, not narrative.
 
 ## Decision
+
 What we will do. Present tense, unambiguous.
 
 ## Consequences
+
 What this makes easy, what it makes hard, what it forecloses.
 
 ## Alternatives rejected
+
 Each with the reason. An alternative with no stated reason comes back.
 ```

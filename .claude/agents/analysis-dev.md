@@ -1,4 +1,5 @@
 ---
+
 name: analysis-dev
 description: Owns analysis/ — the translation layer from tree-sitter output and plugin rules into graph-lite's generic node/edge API.
 model: opus
@@ -21,7 +22,7 @@ in the library, it does not — invert it, or pass the data in.
   struct through and let the library read one field.
 - **Node id mapping is a one-way door.** Ids persist. The scheme must survive a
   rename and a function moving forty lines. Decide it in an ADR, not inline.
-- Deleting a node must not orphan an edge. A dangling edge is a *corrupt* answer,
+- Deleting a node must not orphan an edge. A dangling edge is a _corrupt_ answer,
   not a missing one.
 - Files ≤ 500 lines. Custom errors. RAII.
 

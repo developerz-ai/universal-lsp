@@ -15,7 +15,7 @@ docs/plans/<YYYY>/<MM>/<DD>/<1NN>-<slug>/
 ## Rules
 
 - `1NN` auto-increments per day from `101`. Slug is kebab-case, ≤ 5 words.
-- **Never one `plan.md`.** Multiple files, split by *area of work* — because the
+- **Never one `plan.md`.** Multiple files, split by _area of work_ — because the
   slice boundary is the file-set boundary an executor locks on, and the file set
   is the PR. Split by chapter instead and you invent boundaries the code does not
   have.
@@ -34,6 +34,6 @@ docs/plans/<YYYY>/<MM>/<DD>/<1NN>-<slug>/
 The plan maps 1:1 onto GitHub: the plan dir is a milestone, each slice is an
 issue, `status.yml` `evidence` holds the PRs that closed them.
 
-| Plan | What |
-|---|---|
+| Plan                                                                         | What                                                              |
+| ---------------------------------------------------------------------------- | ----------------------------------------------------------------- |
 | [2026/08/22/101-repo-foundation](2026/08/22/101-repo-foundation/overview.md) | Repository, gates, CI and docs scaffolding (this one is complete) |

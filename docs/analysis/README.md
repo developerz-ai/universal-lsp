@@ -13,13 +13,13 @@ here on the way up. See
 
 ## What it owns
 
-| Concern | Shape |
-|---|---|
-| Node type tags | The vocabulary — `function`, `class`, `module`, `file` — defined here, opaque to the library |
-| Edge type tags | `calls`, `imports`, `defines`, `references` |
-| Id mapping | LSP identity (URI + range, or a stable symbol key) ↔ graph node id |
-| Incremental update | A file changed → which nodes and edges are stale, and removing them without orphaning |
-| Query shaping | Impact radius, call path, architecture overview — composed from traversals, exposed to MCP |
+| Concern            | Shape                                                                                        |
+| ------------------ | -------------------------------------------------------------------------------------------- |
+| Node type tags     | The vocabulary — `function`, `class`, `module`, `file` — defined here, opaque to the library |
+| Edge type tags     | `calls`, `imports`, `defines`, `references`                                                  |
+| Id mapping         | LSP identity (URI + range, or a stable symbol key) ↔ graph node id                           |
+| Incremental update | A file changed → which nodes and edges are stale, and removing them without orphaning        |
+| Query shaping      | Impact radius, call path, architecture overview — composed from traversals, exposed to MCP   |
 
 ## Rules
 

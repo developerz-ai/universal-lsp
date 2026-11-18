@@ -7,32 +7,32 @@ stood alone, because that is what catches a leak before it becomes a rewrite.
 
 ## Start here
 
-| If you want to | Read |
-|---|---|
-| know what is in scope, and what is deliberately not | [`spec.md`](spec.md) |
-| design a subsystem without repeating a known mistake | [`research/things-to-know.md`](research/things-to-know.md) |
-| work in this repo | [`../CLAUDE.md`](../CLAUDE.md) |
-| know why something is the way it is | [`architecture/decisions/`](architecture/decisions/README.md) |
-| debug a symptom | [`gotchas.md`](gotchas.md) |
+| If you want to                                       | Read                                                          |
+| ---------------------------------------------------- | ------------------------------------------------------------- |
+| know what is in scope, and what is deliberately not  | [`spec.md`](spec.md)                                          |
+| design a subsystem without repeating a known mistake | [`research/things-to-know.md`](research/things-to-know.md)    |
+| work in this repo                                    | [`../CLAUDE.md`](../CLAUDE.md)                                |
+| know why something is the way it is                  | [`architecture/decisions/`](architecture/decisions/README.md) |
+| debug a symptom                                      | [`gotchas.md`](gotchas.md)                                    |
 
 ## The subsystems
 
-| Dir | Scope |
-|---|---|
-| [`graph-lite/`](graph-lite/README.md) | The embeddable graph library: [data model](graph-lite/data-model.md), [traversal](graph-lite/traversal.md), [persistence](graph-lite/persistence.md). No consumer vocabulary, enforced. |
-| [`engine/`](engine/README.md) | Daemon core: [position encoding](engine/position-encoding.md), [filesystem changes](engine/filesystem-changes.md), [daemon + shim](engine/daemon.md), [concurrency](engine/concurrency.md). |
-| [`analysis/`](analysis/README.md) | The translation layer — the only place both vocabularies meet. |
-| [`plugins/`](plugins/README.md) | The Lua plugin system and [how to author one](plugins/authoring.md). |
+| Dir                                   | Scope                                                                                                                                                                                       |
+| ------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [`graph-lite/`](graph-lite/README.md) | The embeddable graph library: [data model](graph-lite/data-model.md), [traversal](graph-lite/traversal.md), [persistence](graph-lite/persistence.md). No consumer vocabulary, enforced.     |
+| [`engine/`](engine/README.md)         | Daemon core: [position encoding](engine/position-encoding.md), [filesystem changes](engine/filesystem-changes.md), [daemon + shim](engine/daemon.md), [concurrency](engine/concurrency.md). |
+| [`analysis/`](analysis/README.md)     | The translation layer — the only place both vocabularies meet.                                                                                                                              |
+| [`plugins/`](plugins/README.md)       | The Lua plugin system and [how to author one](plugins/authoring.md).                                                                                                                        |
 
 ## Cross-cutting
 
-| Dir / file | Scope |
-|---|---|
+| Dir / file                                | Scope                                                                                                                                              |
+| ----------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------- |
 | [`architecture/`](architecture/README.md) | [The graph-lite boundary](architecture/graph-lite-boundary.md), [the four tiers](architecture/tiers.md), [ADRs](architecture/decisions/README.md). |
-| [`standards/`](standards/testing.md) | [Testing](standards/testing.md), [C++ conventions](standards/code-style.md), [the dev loop](standards/dev-loop.md). |
-| [`research/`](research/things-to-know.md) | Prior art and pitfalls, gathered before implementation. Dated. |
-| [`gotchas.md`](gotchas.md) | Symptom → cause → fix. Read when something is already wrong. |
-| [`plans/`](plans/README.md) | `/planx` output — dated, self-contained execution plans. |
+| [`standards/`](standards/testing.md)      | [Testing](standards/testing.md), [C++ conventions](standards/code-style.md), [the dev loop](standards/dev-loop.md).                                |
+| [`research/`](research/things-to-know.md) | Prior art and pitfalls, gathered before implementation. Dated.                                                                                     |
+| [`gotchas.md`](gotchas.md)                | Symptom → cause → fix. Read when something is already wrong.                                                                                       |
+| [`plans/`](plans/README.md)               | `/planx` output — dated, self-contained execution plans.                                                                                           |
 
 ## House rules for docs here
 

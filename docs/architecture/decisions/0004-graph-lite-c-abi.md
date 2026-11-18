@@ -5,7 +5,7 @@
 
 ## Context
 
-graph-lite is pitched as *the* embeddable graph library — the SQLite comparison is
+graph-lite is pitched as _the_ embeddable graph library — the SQLite comparison is
 not just about being in-process, it is about **who can embed it**. SQLite's reach
 comes from a flat C ABI: every language runtime on earth can call C, and almost
 none can call C++.
@@ -31,10 +31,10 @@ first, and every binding pins whichever one shipped.
 **The C ABI is graph-lite's primary public contract.** The C++ API is a
 header-only convenience layer over it, not the other way around.
 
-| Header | Language | Is |
-|---|---|---|
-| `graph-lite.h` | C (usable from C++) | **The contract.** `extern "C"`, opaque handles, integer error codes, caller-owned buffers. |
-| `graph-lite.hpp` | C++ | Header-only ergonomics — RAII handles, spans, exceptions — implemented entirely in terms of `graph-lite.h`. Adds no exported symbol of its own. |
+| Header           | Language            | Is                                                                                                                                              |
+| ---------------- | ------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
+| `graph-lite.h`   | C (usable from C++) | **The contract.** `extern "C"`, opaque handles, integer error codes, caller-owned buffers.                                                      |
+| `graph-lite.hpp` | C++                 | Header-only ergonomics — RAII handles, spans, exceptions — implemented entirely in terms of `graph-lite.h`. Adds no exported symbol of its own. |
 
 Rules that follow, and are not negotiable per-function:
 

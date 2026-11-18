@@ -2,11 +2,11 @@
 
 ## Thread roles
 
-| Thread / pool | Owns | Must never |
-|---|---|---|
-| I/O thread | transport decode/encode | parse, analyse, or take an analysis lock |
-| Interactive pool | open/focused documents | be blocked by background work |
-| Background pool | whole-workspace indexing | outrank an interactive request |
+| Thread / pool    | Owns                     | Must never                               |
+| ---------------- | ------------------------ | ---------------------------------------- |
+| I/O thread       | transport decode/encode  | parse, analyse, or take an analysis lock |
+| Interactive pool | open/focused documents   | be blocked by background work            |
+| Background pool  | whole-workspace indexing | outrank an interactive request           |
 
 An open document is consistently routed to the **same** interactive worker, so its
 syntax tree needs no cross-thread lock — routing is the synchronisation.

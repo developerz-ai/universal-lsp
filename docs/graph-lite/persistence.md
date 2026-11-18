@@ -31,10 +31,10 @@ wrong answer has not, and the caller will build on it. So:
 Disproportionate, deliberately, relative to the traversal algorithms — the
 algorithms fail visibly, this fails invisibly.
 
-| Test | Asserts |
-|---|---|
-| Reader fuzzing | No malformed or truncated input can crash, hang, or read out of bounds. |
-| Truncation sweep | Cut the file at every offset; every result is a clean refusal. |
-| Crash consistency | Interrupt a write at every offset; reopen; state is old-or-new. |
+| Test                  | Asserts                                                                     |
+| --------------------- | --------------------------------------------------------------------------- |
+| Reader fuzzing        | No malformed or truncated input can crash, hang, or read out of bounds.     |
+| Truncation sweep      | Cut the file at every offset; every result is a clean refusal.              |
+| Crash consistency     | Interrupt a write at every offset; reopen; state is old-or-new.             |
 | Round-trip properties | Save/load of a generated store preserves every node, edge, property and id. |
-| Version refusal | A file stamped with a newer format version is refused, not guessed at. |
+| Version refusal       | A file stamped with a newer format version is refused, not guessed at.      |

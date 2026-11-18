@@ -11,11 +11,11 @@ LSP historically mandates **UTF-16 code units** for the `character` field of a
 itself travels as UTF-8. This engine will store text internally as UTF-8 or as
 codepoints. So three encodings are in play and only one of them is on the wire.
 
-| Encoding | Where |
-|---|---|
-| UTF-8 | the document content, always |
-| UTF-16 code units | `Position.character`, unless negotiated otherwise |
-| UTF-8 bytes or UTF-32 codepoints | internal storage and every internal index |
+| Encoding                         | Where                                             |
+| -------------------------------- | ------------------------------------------------- |
+| UTF-8                            | the document content, always                      |
+| UTF-16 code units                | `Position.character`, unless negotiated otherwise |
+| UTF-8 bytes or UTF-32 codepoints | internal storage and every internal index         |
 
 ## Real cost of getting it wrong
 
@@ -47,12 +47,12 @@ Not "later, as an edge case" — the conversion is a small pure function, which 
 it exactly the kind of thing that is cheap to test exhaustively and expensive to
 debug in production.
 
-| Case | Why it bites |
-|---|---|
-| ASCII | the trivial path must stay trivial |
-| 2- and 3-byte UTF-8 (accents, CJK) | byte offset ≠ code-unit offset ≠ codepoint offset |
-| Astral plane (emoji, U+1F600+) | one codepoint, **two** UTF-16 code units — the surrogate pair that produces the classic panic |
-| Combining marks / ZWJ sequences | one user-perceived character, many codepoints |
-| A position at end-of-line, and at end-of-file | off-by-one lives here |
-| `\r\n` split across an incremental edit | a position must never land between the two |
-| Round-trip property test | convert to the wire encoding and back; must be identity for every offset in a generated document |
+| Case                                          | Why it bites                                                                                     |
+| --------------------------------------------- | ------------------------------------------------------------------------------------------------ |
+| ASCII                                         | the trivial path must stay trivial                                                               |
+| 2- and 3-byte UTF-8 (accents, CJK)            | byte offset ≠ code-unit offset ≠ codepoint offset                                                |
+| Astral plane (emoji, U+1F600+)                | one codepoint, **two** UTF-16 code units — the surrogate pair that produces the classic panic    |
+| Combining marks / ZWJ sequences               | one user-perceived character, many codepoints                                                    |
+| A position at end-of-line, and at end-of-file | off-by-one lives here                                                                            |
+| `\r\n` split across an incremental edit       | a position must never land between the two                                                       |
+| Round-trip property test                      | convert to the wire encoding and back; must be identity for every offset in a generated document |

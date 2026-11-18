@@ -17,10 +17,10 @@ on top; nobody else has to care that the implementation is C++.
 
 ## Two headers, one contract
 
-| Header | For | Is |
-|---|---|---|
-| `graph-lite.h` | C, and every FFI | **The contract.** C linkage, opaque handles, integer status codes, caller-owned buffers. |
-| `graph-lite.hpp` | C++ | Header-only ergonomics over the C header — RAII, real types, exceptions. Exports no entry point of its own. |
+| Header           | For              | Is                                                                                                          |
+| ---------------- | ---------------- | ----------------------------------------------------------------------------------------------------------- |
+| `graph-lite.h`   | C, and every FFI | **The contract.** C linkage, opaque handles, integer status codes, caller-owned buffers.                    |
+| `graph-lite.hpp` | C++              | Header-only ergonomics over the C header — RAII, real types, exceptions. Exports no entry point of its own. |
 
 The direction is deliberate: C++ has no stable ABI across compilers or standard
 library versions, so a C++ signature in a public header is unlinkable from another
@@ -94,7 +94,7 @@ version of the header than the linked library knows.
   and parallel edges are allowed; removing a node removes its incident edges.
 - **Properties** — int64, double, bool or string values, stored apart from the
   adjacency lists.
-- **Type** — an opaque tag *you* define and name. The library attaches no meaning
+- **Type** — an opaque tag _you_ define and name. The library attaches no meaning
   to any of them, holds no registry, and reserves no name.
 
 Nothing about your domain appears in this library. That is the design, and it is
@@ -104,7 +104,7 @@ enforced by a lint rule rather than left to review.
 
 Add and remove nodes and edges. Walk breadth-first or depth-first, forward or
 reverse, with bounded or `UINT64_MAX`-unbounded depth and results. Filter node and
-edge tags *during* the walk, before candidates enter the worklist; inspect explicit
+edge tags _during_ the walk, before candidates enter the worklist; inspect explicit
 partial-result status when a limit stopped an otherwise admissible candidate.
 
 Find any admissible path or an unweighted shortest path in either direction with
@@ -116,12 +116,12 @@ pools, cache-friendly to traverse without making persistence layout a promise.
 
 ## What it deliberately is not
 
-| Not | Why |
-|---|---|
-| A query language | A programmatic API first. Which queries matter is what real usage answers; designing a language up front commits to guesses. |
-| Backed by a relational engine | Recursive-CTE traversal cannot keep visited-set state across iterations — benchmarked 100×+ slower on deep or dense graphs. |
-| Distributed, clustered, or server-mode | Embedded and in-process, permanently. |
-| Schema-enforcing | Enforce at your own seam if you want it; every writer should not pay for a check most callers do not want. |
+| Not                                    | Why                                                                                                                          |
+| -------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
+| A query language                       | A programmatic API first. Which queries matter is what real usage answers; designing a language up front commits to guesses. |
+| Backed by a relational engine          | Recursive-CTE traversal cannot keep visited-set state across iterations — benchmarked 100×+ slower on deep or dense graphs.  |
+| Distributed, clustered, or server-mode | Embedded and in-process, permanently.                                                                                        |
+| Schema-enforcing                       | Enforce at your own seam if you want it; every writer should not pay for a check most callers do not want.                   |
 
 ## Correctness
 

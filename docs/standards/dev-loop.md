@@ -4,14 +4,15 @@ Two different questions wear the word "check", and answering the inner-loop one
 with the outer-loop command is the largest avoidable waste of wall clock here —
 an agent pays it on **every edit**.
 
-| Question | Command | Cost |
-|---|---|---|
-| did my last edit format + pass the guards? | `bin/check --files <paths>` | < 3s |
-| do the subsystems I touched still build and pass? | `bin/check --changed` | < 30s |
-| is the repo green? | `bin/check` | ~1 min |
+| Question                                          | Command                     | Cost   |
+| ------------------------------------------------- | --------------------------- | ------ |
+| did my last edit format + pass the guards?        | `bin/check --files <paths>` | < 3s   |
+| do the subsystems I touched still build and pass? | `bin/check --changed`       | < 30s  |
+| is the repo green?                                | `bin/check`                 | ~1 min |
 
 `bin/check` configures three build trees and runs the suite twice, once under ASan
-+ UBSan. Run it **once**, before pushing — in the background if that is slow.
+
+- UBSan. Run it **once**, before pushing — in the background if that is slow.
 
 ## How "changed" is computed
 

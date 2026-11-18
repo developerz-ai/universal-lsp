@@ -40,7 +40,7 @@ Request scheduling within each worker pool is plain first-in-first-out, with no
 cross-session priority or fairness logic.
 
 **This is a documented, accepted simplification, not an oversight.** A large burst
-from one aggressive agent session *can* measurably delay another session's
+from one aggressive agent session _can_ measurably delay another session's
 interactive request, including a human's. The cheap refinement, if real usage
 demands it, is a two-queue split — currently-focused-document requests versus
 everything else — not a multi-level fairness scheduler.

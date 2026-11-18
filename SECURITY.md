@@ -22,13 +22,13 @@ it runs on, and it is deliberately incapable of making network calls.
 
 Most interesting to us:
 
-| Area | Why it matters |
-|---|---|
-| Persistence (`graph-lite`) | A malformed or truncated store must be refused, never read as plausible-but-wrong data. Silent corruption is the worst failure mode here. |
-| Protocol decoding | Untrusted JSON-RPC framing and offsets. An out-of-bounds read from a crafted `Position` is in scope. |
-| Text handling | Offset arithmetic on arbitrary UTF-8, including astral-plane and malformed sequences. |
-| Lua plugin execution | A plugin is code, and installing one is a trust decision. But a plugin must not be able to hang the daemon indefinitely, or reach a process or the network — if it can, that is a bug in the budget or the embedding. |
-| The daemon socket | A local socket, never a network port. Anything that changes that is a vulnerability, not a feature. |
+| Area                       | Why it matters                                                                                                                                                                                                        |
+| -------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Persistence (`graph-lite`) | A malformed or truncated store must be refused, never read as plausible-but-wrong data. Silent corruption is the worst failure mode here.                                                                             |
+| Protocol decoding          | Untrusted JSON-RPC framing and offsets. An out-of-bounds read from a crafted `Position` is in scope.                                                                                                                  |
+| Text handling              | Offset arithmetic on arbitrary UTF-8, including astral-plane and malformed sequences.                                                                                                                                 |
+| Lua plugin execution       | A plugin is code, and installing one is a trust decision. But a plugin must not be able to hang the daemon indefinitely, or reach a process or the network — if it can, that is a bug in the budget or the embedding. |
+| The daemon socket          | A local socket, never a network port. Anything that changes that is a vulnerability, not a feature.                                                                                                                   |
 
 Out of scope: a plugin you deliberately installed doing something you told it to;
 resource exhaustion from a genuinely enormous input where the engine degrades

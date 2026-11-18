@@ -3,12 +3,12 @@
 Agent configuration for this repo. Everything here is read by an agent, so every
 file pays its token cost on activation — keep them short.
 
-| Path | Is | Triggered by |
-|---|---|---|
-| `settings.json` | permissions + a post-edit clang-format hook | the harness |
-| `commands/*.md` | canned workflows | `/name` typed by the user |
-| `agents/*.md` | subsystem specialists | delegation from the main agent |
-| `skills/*/SKILL.md` | domain expertise packages | the agent matching the description |
+| Path                | Is                                          | Triggered by                       |
+| ------------------- | ------------------------------------------- | ---------------------------------- |
+| `settings.json`     | permissions + a post-edit clang-format hook | the harness                        |
+| `commands/*.md`     | canned workflows                            | `/name` typed by the user          |
+| `agents/*.md`       | subsystem specialists                       | delegation from the main agent     |
+| `skills/*/SKILL.md` | domain expertise packages                   | the agent matching the description |
 
 ## Budgets
 
@@ -21,14 +21,14 @@ One subagent per subsystem, named after the directory it owns. Delegation is the
 unambiguous — a path maps to exactly one owner — and the file sets are disjoint by
 construction, which is what makes parallel work safe in one checkout.
 
-| Agent | Owns |
-|---|---|
-| `architect` | should this be built, and in what shape |
-| `graph-lite-dev` | `graph-lite/`, `tests/graph-lite/` |
-| `engine-dev` | `engine/`, `daemon/`, `cli/`, `tests/engine/` |
-| `analysis-dev` | `analysis/` |
-| `plugins-dev` | `plugins/`, `tests/plugins/` |
-| `docs-dev` | `docs/`, `README.md` |
+| Agent            | Owns                                          |
+| ---------------- | --------------------------------------------- |
+| `architect`      | should this be built, and in what shape       |
+| `graph-lite-dev` | `graph-lite/`, `tests/graph-lite/`            |
+| `engine-dev`     | `engine/`, `daemon/`, `cli/`, `tests/engine/` |
+| `analysis-dev`   | `analysis/`                                   |
+| `plugins-dev`    | `plugins/`, `tests/plugins/`                  |
+| `docs-dev`       | `docs/`, `README.md`                          |
 
 ## Rules every agent here inherits
 

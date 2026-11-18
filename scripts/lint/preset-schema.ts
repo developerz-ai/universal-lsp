@@ -54,7 +54,8 @@ function highestSchemaFor(declared: string): number | undefined {
 }
 
 export const name = 'preset-schema';
-export const describe = 'each CMakePresets.json schema version is parseable by its own cmakeMinimumRequired';
+export const describe =
+  'each CMakePresets.json schema version is parseable by its own cmakeMinimumRequired';
 
 export async function run(root: string = REPO_ROOT): Promise<Finding[]> {
   const findings: Finding[] = [];

@@ -1,4 +1,5 @@
 ---
+
 description: Write a multi-file execution plan to docs/plans/<YYYY>/<MM>/<DD>/<1NN>-<slug>/ for another agent to execute
 argument-hint: [what you want done]
 allowed-tools: Write, Read, Glob, Grep, Task, Bash
@@ -9,6 +10,7 @@ allowed-tools: Write, Read, Glob, Grep, Task, Bash
 Plan only. **No implementation, no builds, no edits outside the plan dir.**
 
 ## Goal
+
 $ARGUMENTS
 
 ## Steps

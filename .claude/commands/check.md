@@ -1,4 +1,5 @@
 ---
+
 description: Run the right gate tier, report concisely, fix what fails
 allowed-tools: Bash, Read, Edit
 ---
@@ -13,6 +14,7 @@ Stop at the first failure, fix it, re-run **only** that command.
 Report one line per step: `✓ <label>` or `✗ <label> — <error summary>`.
 
 Fix rules:
+
 - Compiler warning → fix the code. **Never** add a suppression; `-Werror` is on
   deliberately.
 - Guard violation → the message names the fix. Never an allowlist entry.

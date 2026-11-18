@@ -22,6 +22,6 @@ Checks: >
   performance-*,
   portability-*
 
-WarningsAsErrors: 'bugprone-*,clang-analyzer-*,performance-*'
+WarningsAsErrors: "bugprone-*,clang-analyzer-*,performance-*"
 HeaderFilterRegex: '^.*/(graph-lite|engine|analysis|daemon|cli)/.*\.(h|hpp)$'
 FormatStyle: file

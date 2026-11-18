@@ -9,14 +9,14 @@ Read [`CLAUDE.md`](CLAUDE.md) before your first change. It is the contract.
 
 ## Prerequisites
 
-| Tool | Why |
-|---|---|
-| CMake ≥ 3.24 | presets |
-| Ninja | the generator every preset uses |
-| A C++20 compiler | GCC 13+ or Clang 16+ |
-| clang-format | the format gate |
-| [Bun](https://bun.sh) | the repo automation under `scripts/` |
-| clang-tidy *(optional)* | local static analysis; CI runs it regardless |
+| Tool                    | Why                                          |
+| ----------------------- | -------------------------------------------- |
+| CMake ≥ 3.24            | presets                                      |
+| Ninja                   | the generator every preset uses              |
+| A C++20 compiler        | GCC 13+ or Clang 16+                         |
+| clang-format            | the format gate                              |
+| [Bun](https://bun.sh)   | the repo automation under `scripts/`         |
+| clang-tidy _(optional)_ | local static analysis; CI runs it regardless |
 
 ## Getting started
 
@@ -32,11 +32,11 @@ knowledge that is not in the repo, that is a bug in our DX — file it.
 
 ## The loop
 
-| After | Run | Cost |
-|---|---|---|
-| each edit | `bin/check --files <paths>` | < 3s |
-| a slice compiles | `bin/check --changed` | < 30s |
-| before pushing | `bin/check` | ~1 min |
+| After            | Run                         | Cost   |
+| ---------------- | --------------------------- | ------ |
+| each edit        | `bin/check --files <paths>` | < 3s   |
+| a slice compiles | `bin/check --changed`       | < 30s  |
+| before pushing   | `bin/check`                 | ~1 min |
 
 Do **not** reflexively run the full gate — it configures three build trees and
 runs the suite twice, once under ASan + UBSan. Details and blind spots:
@@ -61,7 +61,7 @@ an allowlist entry. Background:
 
 - Branch `<type>/<slug>`; conventional commits (`feat:`, `fix:`, `docs:`, …).
 - One concern per PR, ~110 changed files max — automated review skips past a
-  limit, so an oversized PR gets the *least* review.
+  limit, so an oversized PR gets the _least_ review.
 - `Closes #N` in the body.
 - **Never push red.** A PR with 0 checks registered is not a passing PR; wait for
   them to attach.

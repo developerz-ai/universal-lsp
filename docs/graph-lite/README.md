@@ -30,11 +30,11 @@ is close enough to the in-memory layout that loading is nearly a read.
 
 ## Data model
 
-| Concept | Shape |
-|---|---|
-| Node | a stable id, a **type** tag, and arbitrary key/value properties |
-| Edge | directed, from one node to another, a **type** tag, and properties |
-| Type | an opaque tag the caller defines and names. The library attaches no meaning to any of them. |
+| Concept | Shape                                                                                       |
+| ------- | ------------------------------------------------------------------------------------------- |
+| Node    | a stable id, a **type** tag, and arbitrary key/value properties                             |
+| Edge    | directed, from one node to another, a **type** tag, and properties                          |
+| Type    | an opaque tag the caller defines and names. The library attaches no meaning to any of them. |
 
 That is the whole model. There are no built-in types, no schema, no reserved
 names. A caller's domain vocabulary lives entirely in the type tags it chooses;
@@ -87,10 +87,10 @@ disproportionate testing investment relative to the traversal algorithms:
 
 ## The surface
 
-| Header | For | Is |
-|---|---|---|
-| `graph-lite.h` | C, and every FFI | **The contract.** C linkage, opaque handles, integer status codes, caller-owned buffers, additive only. |
-| `graph-lite.hpp` | C++ | Header-only ergonomics over the C header. Exports no entry point of its own. |
+| Header           | For              | Is                                                                                                      |
+| ---------------- | ---------------- | ------------------------------------------------------------------------------------------------------- |
+| `graph-lite.h`   | C, and every FFI | **The contract.** C linkage, opaque handles, integer status codes, caller-owned buffers, additive only. |
+| `graph-lite.hpp` | C++              | Header-only ergonomics over the C header. Exports no entry point of its own.                            |
 
 Rules the C surface holds to — no caller-visible type from the implementation
 language, opaque handles rather than published struct layouts, a distinct status

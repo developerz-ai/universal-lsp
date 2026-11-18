@@ -28,7 +28,7 @@ rust-analyzer, pyright, clangd, or any other binary or network service. Built fo
 terminal-first, agent-driven world: standard **LSP over stdio** for editors, an
 **MCP** front-end for agents, and a headless **batch-query CLI** for CI.
 
-**graph-lite** — the missing *SQLite for graphs*: a small, dependency-free,
+**graph-lite** — the missing _SQLite for graphs_: a small, dependency-free,
 embeddable property-graph library any project can drop in via a single header.
 Its public surface is a **C ABI**, so Ruby, JavaScript, Python, Rust, Go and C
 embed it through their own FFI with no wrapper to keep in sync — the same thing
@@ -61,15 +61,15 @@ declarative Lua rules, not a new server.
 A language gets exactly the depth its plugin's rules describe — never more, never
 less, and never dependent on what is installed on the box.
 
-| Tier | Gives you | Driven by |
-|---|---|---|
-| **1 — Syntax** | highlighting, folding, outline, bracket matching | a tree-sitter grammar reference + query files |
-| **2 — Structure** | go-to-definition, find-references, rename, workspace symbols | declarative scope/binding rules + optional pure Lua callbacks |
-| **3 — Semantics** | type-aware hover, type diagnostics, semantic completion | declarative type rules over a shared native unification core |
-| **4 — Relationships** | call graphs, import graphs, impact radius, call paths | Tier 2/3 output materialised into graph-lite |
+| Tier                  | Gives you                                                    | Driven by                                                     |
+| --------------------- | ------------------------------------------------------------ | ------------------------------------------------------------- |
+| **1 — Syntax**        | highlighting, folding, outline, bracket matching             | a tree-sitter grammar reference + query files                 |
+| **2 — Structure**     | go-to-definition, find-references, rename, workspace symbols | declarative scope/binding rules + optional pure Lua callbacks |
+| **3 — Semantics**     | type-aware hover, type diagnostics, semantic completion      | declarative type rules over a shared native unification core  |
+| **4 — Relationships** | call graphs, import graphs, impact radius, call paths        | Tier 2/3 output materialised into graph-lite                  |
 
-Tier 4 is what an agent actually wants: *what calls this, transitively* and *what
-breaks if I change this* — answered from a pre-computed graph instead of a hundred
+Tier 4 is what an agent actually wants: _what calls this, transitively_ and _what
+breaks if I change this_ — answered from a pre-computed graph instead of a hundred
 file reads.
 
 ## Architecture
@@ -156,14 +156,14 @@ editors and agents. Tier 3 depth grows per language from there, degrading to
 
 ## Documentation
 
-| Read | For |
-|---|---|
-| [`docs/spec.md`](docs/spec.md) | the full scope contract — goals, non-goals, build phases |
-| [`docs/research/things-to-know.md`](docs/research/things-to-know.md) | the pitfalls already paid for by other people's shipped bugs |
-| [`docs/graph-lite/`](docs/graph-lite/README.md) | the library, written as if it already stood alone |
-| [`docs/engine/`](docs/engine/README.md) | position encoding, filesystem-change handling, daemon design |
-| [`docs/plugins/authoring.md`](docs/plugins/authoring.md) | teaching it a new language |
-| [`CLAUDE.md`](CLAUDE.md) | how this repo is worked on — read it before your first change |
+| Read                                                                 | For                                                           |
+| -------------------------------------------------------------------- | ------------------------------------------------------------- |
+| [`docs/spec.md`](docs/spec.md)                                       | the full scope contract — goals, non-goals, build phases      |
+| [`docs/research/things-to-know.md`](docs/research/things-to-know.md) | the pitfalls already paid for by other people's shipped bugs  |
+| [`docs/graph-lite/`](docs/graph-lite/README.md)                      | the library, written as if it already stood alone             |
+| [`docs/engine/`](docs/engine/README.md)                              | position encoding, filesystem-change handling, daemon design  |
+| [`docs/plugins/authoring.md`](docs/plugins/authoring.md)             | teaching it a new language                                    |
+| [`CLAUDE.md`](CLAUDE.md)                                             | how this repo is worked on — read it before your first change |
 
 ## Contributing
 

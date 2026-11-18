@@ -7,13 +7,13 @@ and no staging to poke — a test is the only thing that says "done".
 
 ## The pyramid
 
-| Kind | Hits | Speed target | Where |
-|---|---|---|---|
-| Unit | pure logic, no I/O | < 3s per file, < 10s suite | `tests/<subsystem>/` |
-| Property | generated inputs, asserted invariants | as needed | same |
-| Fuzz | malformed/adversarial input | runs long, separately | persistence, protocol decode |
-| Golden-file | a plugin's output vs a checked-in expectation | fast | `tests/plugins/<language>/` |
-| Integration | the daemon end to end over a real socket | minutes OK | `tests/engine/`, CTest label `integration` |
+| Kind        | Hits                                          | Speed target               | Where                                      |
+| ----------- | --------------------------------------------- | -------------------------- | ------------------------------------------ |
+| Unit        | pure logic, no I/O                            | < 3s per file, < 10s suite | `tests/<subsystem>/`                       |
+| Property    | generated inputs, asserted invariants         | as needed                  | same                                       |
+| Fuzz        | malformed/adversarial input                   | runs long, separately      | persistence, protocol decode               |
+| Golden-file | a plugin's output vs a checked-in expectation | fast                       | `tests/plugins/<language>/`                |
+| Integration | the daemon end to end over a real socket      | minutes OK                 | `tests/engine/`, CTest label `integration` |
 
 ## Registering a suite
 
@@ -35,7 +35,7 @@ your test.
 
 `bin/dev asan` (and the `asan` CI job) run everything under ASan + UBSan. This is
 wired in from the first commit because the hot paths are arena/`std::pmr`
-allocation and CSR indices, where a use-after-free reads as a *wrong answer*
+allocation and CSR indices, where a use-after-free reads as a _wrong answer_
 rather than a crash — the exact bug class that survives a green test run.
 
 ## Rules
@@ -54,7 +54,7 @@ rather than a crash — the exact bug class that survives a green test run.
   configured to retry forever never fails; the test just hangs until the runner's
   timeout.
 - **The guards have their own tests.** Every `scripts/lint/<rule>.ts` ships a
-  `<rule>.test.ts` asserting it flags a bad sample *and* passes a good one. A
+  `<rule>.test.ts` asserting it flags a bad sample _and_ passes a good one. A
   guard that silently matches nothing is worse than none — it looks green.
 
 ## Commands

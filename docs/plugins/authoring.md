@@ -18,12 +18,12 @@ capability must never depend on what is installed on the machine.
 
 ## What a plugin declares, per tier
 
-| Tier | Declares |
-|---|---|
-| 1 | a tree-sitter grammar reference, plus query files for highlighting, folding and symbol extraction |
-| 2 | which node types open scopes, bind names, or are references — plus optional pure Lua callbacks for the irregular cases (imports, macros, dynamic scoping quirks) |
-| 3 | how literals, expressions and calls produce and constrain types, in terms the engine's native unification core understands — plus callbacks for constructs too irregular to declare |
-| — | static completion sources (keywords, snippets) and optional formatting rules |
+| Tier | Declares                                                                                                                                                                            |
+| ---- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1    | a tree-sitter grammar reference, plus query files for highlighting, folding and symbol extraction                                                                                   |
+| 2    | which node types open scopes, bind names, or are references — plus optional pure Lua callbacks for the irregular cases (imports, macros, dynamic scoping quirks)                    |
+| 3    | how literals, expressions and calls produce and constrain types, in terms the engine's native unification core understands — plus callbacks for constructs too irregular to declare |
+| —    | static completion sources (keywords, snippets) and optional formatting rules                                                                                                        |
 
 Plus a **minimum engine version**, so an incompatible pairing is detected and
 reported rather than behaving strangely.

@@ -1,4 +1,5 @@
 ---
+
 name: architect
 description: Should this be built, and in what shape. Produces a design with named tradeoffs and rejected alternatives — never an implementation.
 model: opus

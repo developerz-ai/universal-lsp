@@ -7,12 +7,12 @@ front-end. Depends on graph-lite; graph-lite never depends back.
 > Pre-implementation. These documents are the design being built. Build phases in
 > [`../spec.md`](../spec.md) §14.
 
-| Doc | Read before |
-|---|---|
-| [position-encoding.md](position-encoding.md) | touching offsets, ranges, or anything that indexes text |
-| [filesystem-changes.md](filesystem-changes.md) | the watcher, debounce, or reindex scheduling |
-| [daemon.md](daemon.md) | the process model, the shim, session multiplexing |
-| [concurrency.md](concurrency.md) | adding a thread, a queue, or shared state |
+| Doc                                            | Read before                                             |
+| ---------------------------------------------- | ------------------------------------------------------- |
+| [position-encoding.md](position-encoding.md)   | touching offsets, ranges, or anything that indexes text |
+| [filesystem-changes.md](filesystem-changes.md) | the watcher, debounce, or reindex scheduling            |
+| [daemon.md](daemon.md)                         | the process model, the shim, session multiplexing       |
+| [concurrency.md](concurrency.md)               | adding a thread, a queue, or shared state               |
 
 ## Shape
 
@@ -33,11 +33,11 @@ instinct.
 
 ## Interfaces
 
-| Surface | Transport | For |
-|---|---|---|
-| LSP | stdio | editors, and agent harnesses that speak raw LSP |
-| MCP | the daemon socket | agents — batch/composite questions, backed by the relationship graph |
-| batch CLI | one process, JSON out | CI, and the simplest possible integrations |
+| Surface   | Transport             | For                                                                  |
+| --------- | --------------------- | -------------------------------------------------------------------- |
+| LSP       | stdio                 | editors, and agent harnesses that speak raw LSP                      |
+| MCP       | the daemon socket     | agents — batch/composite questions, backed by the relationship graph |
+| batch CLI | one process, JSON out | CI, and the simplest possible integrations                           |
 
 MCP is a co-equal front-end, not a wrapper bolted on afterwards. An agent asking
 "what breaks if I change this" should get one answer from one call, not compose

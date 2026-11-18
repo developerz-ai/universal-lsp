@@ -7,8 +7,8 @@ they need no approval and no place here.
 > Pre-implementation. The plugin system is build phase 3; the official set is
 > phase 11.
 
-| Doc | For |
-|---|---|
+| Doc                          | For                                 |
+| ---------------------------- | ----------------------------------- |
 | [authoring.md](authoring.md) | writing a plugin for a new language |
 
 ## Launch languages

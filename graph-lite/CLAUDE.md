@@ -17,11 +17,11 @@ The translation from those concepts to typed nodes and edges lives in
 
 ## What the guards will tell you
 
-| Guard | Fires on |
-|---|---|
+| Guard                                   | Fires on                                                                            |
+| --------------------------------------- | ----------------------------------------------------------------------------------- |
 | `scripts/lint/graph-lite-vocabulary.ts` | a borrowed concept name — including inside `CamelCase` and `snake_case` identifiers |
-| `scripts/lint/graph-lite-boundary.ts` | a consumer `#include`, or a `target_link_libraries` against a repo target |
-| CI job `standalone` | anything that breaks `cmake -S graph-lite` |
+| `scripts/lint/graph-lite-boundary.ts`   | a consumer `#include`, or a `target_link_libraries` against a repo target           |
+| CI job `standalone`                     | anything that breaks `cmake -S graph-lite`                                          |
 
 When one fires, the fix is to invert the dependency or move the logic — never an
 allowlist entry, and never a looser rule.

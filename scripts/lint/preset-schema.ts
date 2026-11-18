@@ -1,8 +1,7 @@
 /**
- * A CMakePresets.json must be readable by the CMake it declares in
- * cmakeMinimumRequired — otherwise `cmake --preset …` dies on a supported
- * toolchain with "Unsupported preset version". The check needs nothing outside
- * the preset file: its own schema version and its own declared minimum.
+ * A CMakePresets.json must be readable by CMake 3.24, the project's supported
+ * floor, or declare and align a higher floor — otherwise `cmake --preset …`
+ * dies on a supported toolchain with "Unsupported preset version".
  */
 import { Glob } from 'bun';
 import { REPO_ROOT } from '../lib/git.ts';
@@ -11,6 +10,7 @@ import { type Finding, lines } from '../lib/guard.ts';
 const SCAN = '**/CMakePresets.json';
 /** Build trees hold preset files fetched from third parties — not ours to fix. */
 const SKIP = [/^build\//, /^node_modules\//, /^tmp\//, /^\.git\//];
+const PROJECT_CMAKE_FLOOR = '3.24';
 
 /** cmake-presets(7): the first CMake release that parses each schema version. */
 const SCHEMA_SUPPORT: Record<number, string> = {
@@ -55,7 +55,7 @@ function highestSchemaFor(declared: string): number | undefined {
 
 export const name = 'preset-schema';
 export const describe =
-  'each CMakePresets.json schema version is parseable by its own cmakeMinimumRequired';
+  'each CMakePresets.json schema version is parseable by the project’s supported CMake floor';
 
 export async function run(root: string = REPO_ROOT): Promise<Finding[]> {
   const findings: Finding[] = [];
@@ -91,10 +91,19 @@ export async function run(root: string = REPO_ROOT): Promise<Finding[]> {
       continue;
     }
 
-    // cmakeMinimumRequired is optional (cmake-presets(7)); its absence states no
-    // floor, so there is nothing this guard can contradict.
     const minimum = preset.cmakeMinimumRequired;
-    if (minimum === undefined) continue;
+    if (minimum === undefined) {
+      if (compareVersions(PROJECT_CMAKE_FLOOR, required) >= 0) continue;
+      findings.push({
+        file: rel,
+        line: versionLine,
+        message:
+          `Preset schema version ${version} needs CMake ${required} or newer, but this file omits ` +
+          `cmakeMinimumRequired and the project supports CMake ${PROJECT_CMAKE_FLOOR}. Lower "version" ` +
+          `to ${highestSchemaFor(PROJECT_CMAKE_FLOOR)}, or raise the CMake floor everywhere it is declared.`,
+      });
+      continue;
+    }
     if (typeof minimum.major !== 'number' || typeof minimum.minor !== 'number') {
       findings.push({
         file: rel,

@@ -59,9 +59,19 @@ describe('preset-schema', () => {
     fx.dispose();
   });
 
-  it('passes a file with no cmakeMinimumRequired, which cmake-presets(7) makes optional', async () => {
+  it('flags schema 6 without cmakeMinimumRequired because the supported CMake floor cannot parse it', async () => {
+    const fx = await fixture({ 'CMakePresets.json': presetWithoutFloor(6) });
+    const findings = await run(fx.root);
+    expect(findings).toHaveLength(1);
+    expect(findings[0]?.line).toBe(2);
+    expect(findings[0]?.message).toContain('needs CMake 3.25');
+    expect(findings[0]?.message).toContain('cmakeMinimumRequired');
+    fx.dispose();
+  });
+
+  it('passes a schema compatible with the supported CMake floor without cmakeMinimumRequired', async () => {
     const fx = await fixture({
-      'CMakePresets.json': presetWithoutFloor(6),
+      'CMakePresets.json': presetWithoutFloor(5),
       'graph-lite/CMakePresets.json': presetWithoutFloor(5),
     });
     expect(await run(fx.root)).toEqual([]);

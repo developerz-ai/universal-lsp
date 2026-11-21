@@ -15,6 +15,6 @@
     "test:scripts": "bun test scripts/"
   },
   "devDependencies": {
-    "@biomejs/biome": "2.6.5"
+    "@biomejs/biome": "2.6.6"
   }
 }

@@ -213,8 +213,7 @@ a sibling checkout).
 
 - Branch: `<type>/<slug>` — `feat/csr-storage`, `fix/utf16-surrogate-offset`.
 - Commits: conventional (`feat:`, `fix:`, `docs:`, `chore:`, `test:`, `refactor:`).
-- One concern per PR. Cap ~110 changed files — automated review skips past a
-  limit, so the riskiest PR would get the least review.
+- One concern per PR. Cap ~110 changed files — automated review skips past a limit, so the riskiest PR would get the least review.
 - `Closes #N` in the body. Plan slice → issue → PR is one continuous line.
 - Never push red. `bin/check` before push, in the background if it is slow.
 - A PR with 0 checks registered is not a passing PR — wait for them to attach.

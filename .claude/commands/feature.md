@@ -20,7 +20,9 @@ $ARGUMENTS
 2. **Distrust the paperwork.** If working from a plan or a doc, check it against
    the code and `git log` first — trackers rot in both directions. State plainly
    which claims you falsified and fix the doc in the same change.
-3. **Explore in parallel**, read-only, into a ranked worklist of PR-sized batches.
+3. **Explore in parallel**, read-only, into a ranked worklist of work units. Group
+   compatible units by area into PR batches, at most five PRs per day per
+   [`docs/standards/pr-cadence.md`](../../docs/standards/pr-cadence.md).
 4. **Test first.** Bug → reproducing test. Feature → the assertion that defines
    done. Register suites with `ulsp_add_test`, named `<subsystem>_*`.
 5. **Build the smallest correct thing.** One primitive with its first real caller;
@@ -28,8 +30,9 @@ $ARGUMENTS
 6. **Verify by tier**: `bin/check --files <paths>` after each edit,
    `bin/check --changed` when the slice compiles, `bin/check` once before pushing.
    Fail one, fix one — re-run only the failing command.
-7. **PR**: `<type>/<slug>` branch, conventional commit, `Closes #N`, one concern,
-   ~110 files max. Never push red; wait for checks to register.
+7. **PR**: `<type>/<slug>` branch, conventional commit, one tracking issue per
+   batch (`Closes #N` for the batch), ~110 files max. Ship the fix, its test, its
+   guard and its doc in the same PR. Never push red; wait for checks to register.
 8. **Merge queue depth 1.** Never two PRs in flight — each merge rebases `main`
    under the other and CI results go stale silently.
 

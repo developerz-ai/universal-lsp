@@ -29,7 +29,9 @@ $ARGUMENTS
 
 3. **Write `overview.md` plus one `<NN>-<aspect>.md` per separable area of work.**
    Never a single `plan.md`. Split by area, not by chapter: the slice boundary is
-   the file-set boundary an executor locks on, and the file set is the PR.
+   the file-set boundary an executor locks on. Slices are not PRs: group several
+   compatible slices by area into each PR batch, at most five PRs per day per
+   [`docs/standards/pr-cadence.md`](../../docs/standards/pr-cadence.md).
    Shapes and rules: [`docs/plans/README.md`](../../docs/plans/README.md).
 
 4. **Write `status.yml`** — the one tracker. `created_by`/`owner` from

@@ -30,7 +30,8 @@ export function batchIntoPRs(units: WorkUnit[]): WorkUnit[][] {
 
   const all = [...groups.values()];
   const batched = all.slice(0, TARGET_PRS_PER_DAY - 1);
-  batched.push(all.slice(TARGET_PRS_PER_DAY - 1).flat());
+  const foldedAreas = new Set([...groups.keys()].slice(TARGET_PRS_PER_DAY - 1));
+  batched.push(units.filter((unit) => foldedAreas.has(unit.area)));
   return batched;
 }
 

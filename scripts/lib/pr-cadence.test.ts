@@ -29,4 +29,15 @@ describe('PR cadence policy', () => {
       expect(group).toEqual(units.filter((u) => group.includes(u)));
     }
   });
+
+  it('preserves input order when interleaved areas are folded into the last group', () => {
+    const interleaved = ['a', 'b', 'c', 'd', 'e', 'f', 'e', 'f'].map((area, i) => ({
+      slice: `S${i + 1}`,
+      area,
+    }));
+    const batched = batchIntoPRs(interleaved);
+    expect(batched).toHaveLength(TARGET_PRS_PER_DAY);
+    expect(batched.slice(0, 4)).toEqual(interleaved.slice(0, 4).map((unit) => [unit]));
+    expect(batched[4]).toEqual(interleaved.slice(4));
+  });
 });

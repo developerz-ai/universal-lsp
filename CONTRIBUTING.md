@@ -60,9 +60,11 @@ an allowlist entry. Background:
 ## Pull requests
 
 - Branch `<type>/<slug>`; conventional commits (`feat:`, `fix:`, `docs:`, …).
-- One concern per PR, ~110 changed files max — automated review skips past a
-  limit, so an oversized PR gets the _least_ review.
-- `Closes #N` in the body.
+- Batch related work by area into at most five PRs per day, ~110 changed files
+  max per PR — automated review skips past a limit, so an oversized PR gets the
+  _least_ review. Ship a fix, its test, its guard and its doc in the same PR.
+- One tracking issue per PR batch; `Closes #N` in the body.
+- Budget and grouping policy: [`docs/standards/pr-cadence.md`](docs/standards/pr-cadence.md).
 - **Never push red.** A PR with 0 checks registered is not a passing PR; wait for
   them to attach.
 - Ship the guard with the fix: a defect that can recur gets its test or lint rule

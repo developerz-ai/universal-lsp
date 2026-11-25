@@ -7,6 +7,9 @@
 #     cmake -S graph-lite -B build/graph-lite && cmake --build build/graph-lite
 cmake_minimum_required(VERSION 3.24)
 
+# Standalone mode: this directory IS the source root. Define the targets the
+# parent build normally provides, then fall through to the shared library
+# definition below.
 if(CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR)
     project(graph-lite VERSION 0.1.0 DESCRIPTION "Embeddable property-graph library" LANGUAGES CXX)
     set(CMAKE_CXX_STANDARD 20)
@@ -49,6 +52,13 @@ set_target_properties(graph-lite PROPERTIES
     CXX_VISIBILITY_PRESET hidden
     VISIBILITY_INLINES_HIDDEN YES
     VERSION ${GRAPH_LITE_VERSION})
+
+# Dependency-free smoke tests: nothing outside graph-lite/, no GTest, no
+# network fetch. Only active in standalone mode.
+if(CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR)
+    enable_testing()
+    add_subdirectory(tests)
+endif()
 
 # The numbers behind docs/graph-lite/benchmark.md come from here. EXCLUDE_FROM_ALL:
 # measuring is an explicit act (`cmake --build --preset release --target

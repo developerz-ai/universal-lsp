@@ -2,8 +2,8 @@
 //
 // Dependency-free: links only graph-lite, uses no GTest, no parent helper, and
 // nothing outside graph-lite/. Returns non-zero on the first failure so ctest
-// reports it. Compiled as C++ and exercised through the plain C ABI (graph-lite.h)
-// to prove the public header is usable from a non-C++ caller too.
+// reports it. Compiled as C++ and exercises calls through the C ABI
+// (graph-lite.h). C compilation is covered by the root C ABI test.
 #include "graph-lite.h"
 
 #include <cstdio>
@@ -79,12 +79,16 @@ int main() {
     check(graph_lite_out_edges(g, a, buf, 8, &count) == GRAPH_LITE_OK && count == 1 &&
               buf[0] == edge_ab,
           "out_edges of a lists the edge to b");
-    check(graph_lite_in_edges(g, c, buf, 8, &count) == GRAPH_LITE_OK && count == 1,
+    buf[0] = GRAPH_LITE_INVALID_ID;
+    count = 0;
+    check(graph_lite_in_edges(g, c, buf, 8, &count) == GRAPH_LITE_OK && count == 1 &&
+              buf[0] == edge,
           "in_edges of c lists the edge from b");
 
     uint64_t degree = 0;
     check(graph_lite_node_out_degree(g, b, &degree) == GRAPH_LITE_OK && degree == 1,
           "out_degree of b is 1");
+    degree = 0;
     check(graph_lite_node_in_degree(g, b, &degree) == GRAPH_LITE_OK && degree == 1,
           "in_degree of b is 1");
 

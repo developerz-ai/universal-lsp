@@ -49,4 +49,6 @@ Test suites: `graph_lite_version_test`, `graph_lite_store_test`, `graph_lite_all
 
 ## What the isolation proof is
 
-`cmake -S graph-lite -B build/graph-lite-standalone -G Ninja && cmake --build build/graph-lite-standalone` configures and builds a clean copy of only `graph-lite/` with no dependency outside `graph-lite/` and no network. `ctest` on that build runs the suites registered through `ulsp_add_test`; any failure means graph-lite has grown a dependency it must not have, or a test needs borrowed vocabulary, and both are caught by `scripts/lint/graph-lite-vocabulary.ts` and `scripts/lint/graph-lite-boundary.ts` respectively.
+`cmake -S graph-lite -B build/graph-lite-standalone -G Ninja && cmake --build build/graph-lite-standalone` configures and builds only `graph-lite/` without repository dependencies or network access. `ctest --test-dir build/graph-lite-standalone --output-on-failure` runs `standalone_smoke_test`, which checks graph operations through the C ABI from C++. An assertion failure indicates a failed smoke check, not necessarily an isolation violation.
+
+The root build separately runs the suites registered through `ulsp_add_test`, including the C-compiled ABI test. The independent `scripts/lint/graph-lite-vocabulary.ts` and `scripts/lint/graph-lite-boundary.ts` guards check vocabulary and dependency boundaries, respectively.

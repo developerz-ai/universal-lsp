@@ -9,11 +9,9 @@ permissions:
   contents: read
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
-
-env:
-  BUN_VERSION: '1.4.3'
+  # Superseded PR pushes cancel; a `main` run always finishes, one group per SHA.
+  group: ${{ github.workflow }}-${{ github.event_name == 'pull_request' && github.ref || github.sha }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 # RUNNERS: ubuntu-latest, everywhere, deliberately.
 #
@@ -51,7 +49,7 @@ jobs:
         run: git fetch --no-tags --depth=200 origin "+refs/heads/${BASE_BRANCH}:refs/remotes/origin/${BASE_BRANCH}"
       - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
         with:
-          bun-version: ${{ env.BUN_VERSION }}
+          bun-version-file: .bun-version
       # Fails CLOSED: an unresolvable base ref (a first push sends an all-zero
       # `before`) widens to the full gate instead of selecting nothing. An empty
       # selection reads as "skip the build" downstream, and CI then reports green
@@ -73,7 +71,7 @@ jobs:
           persist-credentials: false
       - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
         with:
-          bun-version: ${{ env.BUN_VERSION }}
+          bun-version-file: .bun-version
       - run: bun install --frozen-lockfile
       # Pinned major: clang-format's output changes between releases, so an
       # unpinned formatter means CI and a developer disagree about what

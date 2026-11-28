@@ -68,11 +68,11 @@ branches:
 # scout: the survey is off here (idea / undeployed repo, census 2026-11-28: ~14M tokens per survey run).
 # `broken_only` files only what is already broken; `full` also files ideas.
 scout:
-  survey: "off"  # quoted: YAML 1.1 parsers read a bare off as false
+  survey: "off" # quoted: YAML 1.1 parsers read a bare off as false
 
 # devops: advisory watch off (idea / undeployed repo: nothing ships to users). `advisories` turns it on.
 devops:
-  watch: "off"  # quoted: YAML 1.1 parsers read a bare off as false
+  watch: "off" # quoted: YAML 1.1 parsers read a bare off as false
 
 # care: docs_drift off (census 2026-11-28: 47 tasks, 8 docs-only merges, 33 failed). flaky_tests keeps its default.
 care:

@@ -13,7 +13,6 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.event_name == 'pull_request' && github.ref || github.sha }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
-
 # RUNNERS: ubuntu-latest, everywhere, deliberately.
 #
 # A runner label that nothing serves does not fail: no runner is ever assigned,
